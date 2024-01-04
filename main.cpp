@@ -6,7 +6,7 @@
 /*   By: ael-maar <ael-maar@student.1337.ma>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/12/23 11:34:44 by ael-maar          #+#    #+#             */
-/*   Updated: 2024/01/03 19:20:14 by ael-maar         ###   ########.fr       */
+/*   Updated: 2024/01/04 17:44:35 by ael-maar         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -37,6 +37,35 @@ HttpMethod detectMethod(const std::string &request)
     return (NONE);
 }
 
+bool isTransferEncodingChunked(const std::string &request)
+{
+    size_t locate = request.find("Transfer-Encoding:");
+    if (locate != std::string::npos)
+    {
+        std::string value = request.substr(locate + strlen("Transfer-Encoding:"));
+        // Find the end of the line
+        size_t endOfLine = value.find("\r\n");
+        if (endOfLine != std::string::npos)
+        {
+            value = value.substr(0, endOfLine);
+            // Remove leading and trailing whitespaces
+            value.erase(0, value.find_first_not_of(" \t"));
+            value.erase(value.find_last_not_of(" \t") + 1);
+            if (value == "chunked")
+                 return (true);
+        }
+    }
+    return (false);
+}
+
+int extractContentLength(const std::string &request)
+{
+    size_t locate = request.find("Content-Length:");
+    if (locate != std::string::npos)
+        return (atoi(request.substr(locate + strlen("Content-Length:")).c_str()));
+    return (-1);
+}
+
 void updateClientInfo(clientInfo &clientRequest, char buffer[])
 {
     size_t locate;
@@ -44,15 +73,11 @@ void updateClientInfo(clientInfo &clientRequest, char buffer[])
 
     requestHeader += buffer;
     // Locate the method in the request
-    detectMethod(requestHeader);
+    clientRequest.method = detectMethod(requestHeader);
     // Locate if the request is chunked for POST request
-    locate = requestHeader.find("chunked");
-    if (locate != std::string::npos)
-        clientRequest.isTransferChunked = true;
-    // Locate and extract the content length if it's POST request
-    locate = requestHeader.find("Content-Length:");
-    if (locate != std::string::npos)
-        clientRequest.contentLength = atoi(requestHeader.substr(locate + strlen("Content-Length:")).c_str());
+    clientRequest.isTransferChunked = isTransferEncodingChunked(requestHeader);
+    // Locate and extract the content length
+    clientRequest.contentLength = extractContentLength(requestHeader);
 }
 
 bool endsWith(std::string const &requestHeader, std::string const &requestEnd)
@@ -124,7 +149,6 @@ int main(void)
                     check_error(fcntl(clientSocket, F_SETFL, O_NONBLOCK, FD_CLOEXEC));
                     FD_SET(clientSocket, &mainSet);
                     clientInfos.insert(std::make_pair(clientSocket, newClientInfo(clientSocket)));
-                    clientInfoIt it = clientInfos.find(clientSocket);
                     if (clientSocket > max_fds)
                         max_fds = clientSocket;
                 }
@@ -143,7 +167,7 @@ int main(void)
                             updateClientInfo(clientInfo, buffer);
                         else
                             clientInfo.request += buffer;
-                        if (isCompleteMessage(clientInfo)) // Check if the request header is completed and ready to be parsed
+                        if (isCompleteMessage(clientInfo)) // Check if the request header is completed and ready to be handled
                         {
                             handleConnection(clientInfo);
                             clientInfos.erase(clientIt);

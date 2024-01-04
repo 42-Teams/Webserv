@@ -6,7 +6,7 @@
 /*   By: ael-maar <ael-maar@student.1337.ma>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/12/22 19:24:47 by ael-maar          #+#    #+#             */
-/*   Updated: 2024/01/03 19:09:04 by ael-maar         ###   ########.fr       */
+/*   Updated: 2024/01/04 16:32:32 by ael-maar         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -56,7 +56,7 @@ void handleConnection(clientInfo &clientInfo)
 {
     std::cout << clientInfo.request << std::endl;
 
-    std::string message = "Hello world";
+    std::string message = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nHello, World!";
 
     send(clientInfo.clientSocket, message.c_str(), message.size(), 0);
     close(clientInfo.clientSocket);

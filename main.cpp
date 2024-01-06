@@ -6,7 +6,7 @@
 /*   By: ael-maar <ael-maar@student.1337.ma>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/12/23 11:34:44 by ael-maar          #+#    #+#             */
-/*   Updated: 2024/01/04 17:44:35 by ael-maar         ###   ########.fr       */
+/*   Updated: 2024/01/05 20:25:13 by ael-maar         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,90 +25,61 @@ clientInfo newClientInfo(int clientSocket)
 
 HttpMethod detectMethod(const std::string &request)
 {
-    size_t locateMethod = request.find("POST");
-    if (locateMethod != std::string::npos)
-        return (POST);
-    locateMethod = request.find("GET");
-    if (locateMethod != std::string::npos)
+    std::string method = request.substr(0, request.find(" "));
+    if (method == "GET")
         return (GET);
-    locateMethod = request.find("DELETE");
-    if (locateMethod != std::string::npos)
+    if (method == "POST")
+        return (POST);
+    if (method == "DELETE")
         return (DELETE);
     return (NONE);
 }
 
-bool isTransferEncodingChunked(const std::string &request)
-{
-    size_t locate = request.find("Transfer-Encoding:");
-    if (locate != std::string::npos)
-    {
-        std::string value = request.substr(locate + strlen("Transfer-Encoding:"));
-        // Find the end of the line
-        size_t endOfLine = value.find("\r\n");
-        if (endOfLine != std::string::npos)
-        {
-            value = value.substr(0, endOfLine);
-            // Remove leading and trailing whitespaces
-            value.erase(0, value.find_first_not_of(" \t"));
-            value.erase(value.find_last_not_of(" \t") + 1);
-            if (value == "chunked")
-                 return (true);
-        }
-    }
-    return (false);
-}
-
-int extractContentLength(const std::string &request)
-{
-    size_t locate = request.find("Content-Length:");
-    if (locate != std::string::npos)
-        return (atoi(request.substr(locate + strlen("Content-Length:")).c_str()));
-    return (-1);
-}
-
-void updateClientInfo(clientInfo &clientRequest, char buffer[])
+void updateClientInfo(clientInfo &clientRequest, char buffer[], size_t const bytesRead)
 {
     size_t locate;
     std::string &requestHeader = clientRequest.request;
 
-    requestHeader += buffer;
+    requestHeader.append(buffer, bytesRead);
     // Locate the method in the request
     clientRequest.method = detectMethod(requestHeader);
     // Locate if the request is chunked for POST request
-    clientRequest.isTransferChunked = isTransferEncodingChunked(requestHeader);
+    locate = requestHeader.find("Transfer-Encoding: chunked");
+    if (locate != std::string::npos)
+        clientRequest.isTransferChunked = true;
     // Locate and extract the content length
-    clientRequest.contentLength = extractContentLength(requestHeader);
+    locate = requestHeader.find("Content-Length:");
+    if (locate != std::string::npos)
+        clientRequest.contentLength = std::atoi(requestHeader.substr(locate + strlen("Content-Length:")).c_str());
 }
 
 bool endsWith(std::string const &requestHeader, std::string const &requestEnd)
 {
-    return (requestHeader.find(requestEnd) != std::string::npos);
+    return (requestHeader.rfind(requestEnd.c_str(), requestHeader.size(), requestEnd.size()) != std::string::npos);
 }
 
-bool isRequestBodyLengthValid(std::string const &requestHeader, int const contentLength)
+bool isRequestBodyLengthValid(std::string const &requestHeader, size_t contentLength)
 {
     size_t locate = requestHeader.find("\r\n\r\n");
+    
+    std::string body = requestHeader.substr(locate + 4);
 
-    size_t requestBodyLen = strlen(requestHeader.c_str() + locate + strlen("\r\n\r\n"));
-
-    return (requestBodyLen >= contentLength);
+    return (body.size() >= contentLength);
 }
 
 bool isCompleteMessage(clientInfo &clientRequest)
 {
     switch(clientRequest.method)
     {
-        case GET:
-            return (endsWith(clientRequest.request, "\r\n\r\n"));
         case POST:
             if (clientRequest.isTransferChunked)
-                return (endsWith(clientRequest.request, "\r\n0\r\n"));
+                return (endsWith(clientRequest.request, "\r\n\r\n0\r\n\r\n"));
             else if (clientRequest.contentLength != -1)
                 return (isRequestBodyLengthValid(clientRequest.request, clientRequest.contentLength));
             else
                 return (endsWith(clientRequest.request, "\r\n\r\n"));
         default:
-            return (true); // for DELETE method (not yet handled)
+            return (endsWith(clientRequest.request, "\r\n\r\n")); // For all the other methods
     }
 }
 
@@ -118,19 +89,15 @@ int main(void)
     clientInfoList clientInfos;
     int_v serverSockets;
 
-    // Create server sockets and add them to servers vector
-    for (int i = 0; i < 5; i++)
-        serverSockets.push_back(setupServer(80, BACKLOG));
-
     FD_ZERO(&mainSet);
-    // Add the server sockets to the set (mainSet)
-    for (int i = 0; i < serverSockets.size(); ++i)
+    // Create server sockets and add them to servers vector
+    for (int i = 80; i <= 85; i++)
     {
-        check_error(fcntl(serverSockets[i], F_SETFL, O_NONBLOCK, FD_CLOEXEC));
-        FD_SET(serverSockets[i], &mainSet);
+        serverSockets.push_back(setupServer(i, BACKLOG));
+        FD_SET(serverSockets.back(), &mainSet);
     }
-    int max_fds = serverSockets.back();
- 
+
+    int max_fds = serverSockets.back(); 
     while (true)
     {
         // copy the main set to the working set, so that when select changes
@@ -161,12 +128,12 @@ int main(void)
 
                     if (bytesRead > 0)
                     {
-                        buffer[bytesRead] = '\0';
+                        // buffer[bytesRead] = '\0';
                         // First time reading from the client, parse the HTTP request header.
                         if (clientInfo.request.empty())
-                            updateClientInfo(clientInfo, buffer);
+                            updateClientInfo(clientInfo, buffer, bytesRead);
                         else
-                            clientInfo.request += buffer;
+                            clientInfo.request.append(buffer,bytesRead);
                         if (isCompleteMessage(clientInfo)) // Check if the request header is completed and ready to be handled
                         {
                             handleConnection(clientInfo);

@@ -6,7 +6,7 @@
 /*   By: ael-maar <ael-maar@student.1337.ma>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/12/22 19:24:47 by ael-maar          #+#    #+#             */
-/*   Updated: 2024/01/04 16:32:32 by ael-maar         ###   ########.fr       */
+/*   Updated: 2024/01/05 20:23:29 by ael-maar         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -27,6 +27,7 @@ int setupServer(int port, int backLog)
     int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
     check_error(serverSocket);
 
+    check_error(fcntl(serverSocket, F_SETFL, O_NONBLOCK, FD_CLOEXEC));
     int opt = 1;
     check_error(setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)));
     check_error(setsockopt(serverSocket, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt)));
@@ -54,7 +55,7 @@ int acceptNewConnection(int serverSocket)
 
 void handleConnection(clientInfo &clientInfo)
 {
-    std::cout << clientInfo.request << std::endl;
+    // std::cout << clientInfo.request << std::endl;
 
     std::string message = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nHello, World!";
 

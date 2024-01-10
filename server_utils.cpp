@@ -6,7 +6,7 @@
 /*   By: ael-maar <ael-maar@student.1337.ma>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/12/22 19:24:47 by ael-maar          #+#    #+#             */
-/*   Updated: 2024/01/09 12:09:23 by ael-maar         ###   ########.fr       */
+/*   Updated: 2024/01/10 15:14:12 by ael-maar         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,8 +17,8 @@ void check_error(int sys, int socketFD)
     if (sys == -1)
     {
         std::cerr << strerror(errno) << std::endl;
-        throw strerror(errno);
         close(socketFD);
+        throw strerror(errno);
     }
 }
 
@@ -30,7 +30,6 @@ int setupServer(int port, int backLog)
     check_error(fcntl(serverSocket, F_SETFL, O_NONBLOCK, FD_CLOEXEC), serverSocket);
     int opt = 1;
     check_error(setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)), serverSocket);
-    check_error(setsockopt(serverSocket, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt)), serverSocket);
     sockaddr_in serverAddress = {};
     serverAddress.sin_family = AF_INET;
     serverAddress.sin_addr.s_addr = INADDR_ANY;

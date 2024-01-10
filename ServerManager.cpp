@@ -6,7 +6,7 @@
 /*   By: ael-maar <ael-maar@student.1337.ma>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/01/08 12:24:42 by ael-maar          #+#    #+#             */
-/*   Updated: 2024/01/09 12:01:48 by ael-maar         ###   ########.fr       */
+/*   Updated: 2024/01/10 15:45:39 by ael-maar         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -141,11 +141,11 @@ void ServerManager::handleIncomingData(int socket)
             handleConnection(clientInfo);
             clientInfo.request.clear();
             FD_SET(socket, &mainWriteSet);
+            FD_CLR(socket, &mainReadSet);
         }
     } else {
         clientInfos.erase(clientIt);
         FD_CLR(socket, &mainReadSet);
-        FD_CLR(socket, &mainWriteSet);
         close(socket);
     }
 }
@@ -156,21 +156,21 @@ void ServerManager::handleSendingData(int socket)
     clientInfo &clientInfo = clientIt->second;
     size_t &bytesSent = clientInfo.responseBytesSent;
 
-    std::string chunkBytes = clientInfo.response.substr(bytesSent, WRITE_BUFFER);
-    ssize_t bytesWriting = write(socket, chunkBytes.c_str(), chunkBytes.size());
+    ssize_t bytesWriting = write(socket, clientInfo.response.c_str() + bytesSent, clientInfo.response.size() - bytesSent);
     
     if (bytesWriting == -1)
     {
-        FD_CLR(socket, &mainReadSet);
         FD_CLR(socket, &mainWriteSet);
         clientInfos.erase(clientIt);
         close(socket);
         return ;
     }
-    bytesSent += WRITE_BUFFER;
+    bytesSent += bytesWriting;
 
     if (bytesSent >= clientInfo.response.size())
     {
+        FD_CLR(socket, &mainWriteSet);
+        FD_SET(socket, &mainReadSet);
         clientInfo.response.clear();
         bytesSent = 0;
     }
@@ -200,19 +200,24 @@ void ServerManager::run()
         FD_COPY(&mainWriteSet, &workingWriteSet);
         try
         {
-            check_error(select(max_fds + 1, &workingReadSet, &workingWriteSet, NULL, 0), -1); // check ready socket file descriptors to be read from.
+            check_error(select(max_fds + 1, &workingReadSet, &workingWriteSet, NULL, 0), -1); // check ready socket file descriptors.
             for (int socketFD = 0; socketFD <= max_fds; ++socketFD)
             {
-                if (socketReadyForRead(socketFD))
+                try
                 {
-                    if (isServerSocket(socketFD))
-                        handleNewConnection(socketFD);
-                    else
-                        handleIncomingData(socketFD);
+                    if (socketReadyForRead(socketFD))
+                    {
+                        if (isServerSocket(socketFD))
+                            handleNewConnection(socketFD);
+                        else
+                            handleIncomingData(socketFD);
+                    }
+                    else if (socketReadyForWrite(socketFD))
+                        handleSendingData(socketFD);
                 }
-                else if (socketReadyForWrite(socketFD))
+                catch(const char *error)
                 {
-                    handleSendingData(socketFD);
+                    std::cerr << error << '\n';
                 }
             }
         }

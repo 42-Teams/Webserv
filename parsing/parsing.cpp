@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   parsing.cpp                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: azaghlou <azaghlou@student.1337.ma>        +#+  +:+       +#+        */
+/*   By: ael-maar <ael-maar@student.1337.ma>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/12/04 14:50:47 by azaghlou          #+#    #+#             */
-/*   Updated: 2024/02/06 18:26:17 by azaghlou         ###   ########.fr       */
+/*   Updated: 2024/02/06 19:15:20 by ael-maar         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -242,7 +242,6 @@ std::vector<Server> ServerFill(std::string conf)
             block = line;
             k = 0; j = 0;
         }
-        std::cout << "The line: " << line << std::endl;
         var = FirstPart(line);
         if (block == "[server]" && var == "server_name" && serv_it->get_name().empty())
             serv_it->set_name(SecondPart(line));
@@ -272,11 +271,11 @@ std::vector<Server> ServerFill(std::string conf)
         else if (block == "[location]" && var == "body_size" && loc_it->get_body_size() == 1048576)
             loc_it->set_body_size(port_case(SecondPart(line)));
         else if (line != "[server]" && line != "[location]")
-            return (throw std::string("Error"), vec);
+            return (throw std::string("Syntax Error"), vec);
         if (global_var == true)
-            return (throw std::string("Error"), vec);
+            return (throw std::string("Syntax Error"), vec);
     }
     if (checkOptionals(vec))
-        throw std::string("Error");
+        throw std::string("Syntax Error");
     return (vec);
 }

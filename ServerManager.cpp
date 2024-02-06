@@ -6,26 +6,26 @@
 /*   By: ael-maar <ael-maar@student.1337.ma>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/01/08 12:24:42 by ael-maar          #+#    #+#             */
-/*   Updated: 2024/01/10 15:45:39 by ael-maar         ###   ########.fr       */
+/*   Updated: 2024/02/06 19:36:04 by ael-maar         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "webserv.hpp"
 
-ServerManager::ServerManager()
+ServerManager::ServerManager(std::vector<Server> &conFile): conFile(conFile)
 {
     FD_ZERO(&mainReadSet);
     FD_ZERO(&mainWriteSet);
     max_fds = 0;
 }
 
-void ServerManager::setupServers(int start, int end)
+void ServerManager::setupServers()
 {
-    while (start <= end)
+    for (int i = 0; i < conFile.size(); ++i)
     {
         try
         {
-            int socketFD = setupServer(start, BACKLOG); // create new socket for the server
+            int socketFD = setupServer(conFile.at(i).get_port(), BACKLOG); // create new socket for the server
             FD_SET(socketFD, &mainReadSet);
             serverSockets.push_back(socketFD);
         }
@@ -33,7 +33,6 @@ void ServerManager::setupServers(int start, int end)
         {
             std::cerr << "ERROR: " << error << '\n';
         }
-        start++;
     }
     max_fds = serverSockets.back();
 }

@@ -6,7 +6,7 @@
 /*   By: ael-maar <ael-maar@student.1337.ma>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/12/23 11:33:05 by ael-maar          #+#    #+#             */
-/*   Updated: 2024/01/10 15:37:59 by ael-maar         ###   ########.fr       */
+/*   Updated: 2024/02/06 19:32:53 by ael-maar         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -29,6 +29,7 @@
 #include <fcntl.h>
 #include <unordered_map>
 #include <utility>
+#include "parsing.hpp"
 
 # define READ_BUFFER 1024
 
@@ -108,11 +109,12 @@ class ServerManager {
         clientInfoList clientInfos;     ///< List of client information.
         int_v serverSockets;            ///< Vector of server socket file descriptors.
         int max_fds;                    ///< Maximum file descriptor value.
+        std::vector<Server> &conFile;
     public:
         /**
          * @brief Default constructor for ServerManager.
          */
-        ServerManager();
+        ServerManager(std::vector<Server> &conFile);
 
         /**
          * @brief Set up multiple server instances.
@@ -120,7 +122,7 @@ class ServerManager {
          * @param start The starting port number.
          * @param end The ending port number.
          */
-        void setupServers(int start, int end);
+        void setupServers();
 
         /**
          * @brief Run the server instances.

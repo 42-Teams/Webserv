@@ -85,4 +85,6 @@ class Server
         // void    print_all(std::vector<Server> vec); // Description: A function that print all the Attributes of the server class and of the location member class
 };
 
+std::vector<Server> ServerFill(std::string conf);
+
 #endif

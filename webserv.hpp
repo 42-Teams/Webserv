@@ -29,7 +29,10 @@
 #include <fcntl.h>
 #include <unordered_map>
 #include <utility>
-#include "parsing.hpp"
+#include "parsing/parsing.hpp"
+#include "Cgi.hpp"
+#include "Request.hpp"
+#include "Response.hpp"
 
 # define READ_BUFFER 1024
 
@@ -59,6 +62,7 @@ typedef struct clientInfo
     std::string request;            ///< HTTP request received from the client.
     std::string response;           ///< HTTP response to be sent to the client.
     size_t responseBytesSent;       ///< Tracking the number of bytes sent in the response.
+    bool keepAlive;                 ///< Flag indicating if the connection should be kept alive.
 } clientInfo;
 
 typedef std::unordered_map<int, clientInfo> clientInfoList;   ///< Map of client socket file descriptors to client information.
@@ -86,7 +90,7 @@ int  acceptNewConnection(int serverSocket);
  *
  * @param clientInfo The client information.
  */
-void handleConnection(clientInfo &clientInfo);
+void handleConnection(std::vector<Server> &conFile, clientInfo &clientInfo);
 
 /**
  * @brief Check for errors and handle them.

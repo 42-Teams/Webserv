@@ -21,7 +21,7 @@ ServerManager::ServerManager(std::vector<Server> &conFile): conFile(conFile)
 
 void ServerManager::setupServers()
 {
-    for (int i = 0; i < conFile.size(); ++i)
+    for (size_t i = 0; i < conFile.size(); ++i)
     {
         try
         {
@@ -46,7 +46,7 @@ clientInfo ServerManager::newClientInfo(int clientSocket) const
     client.contentLength = -1;
     client.isTransferChunked = false;
     client.responseBytesSent = 0;
-    
+    client.keepAlive = false;
     return (client);
 }
 
@@ -137,7 +137,7 @@ void ServerManager::handleIncomingData(int socket)
             clientInfo.request.append(buffer,bytesRead);
         if (isCompleteMessage(clientInfo)) // Check if the request header is completed and ready to be handled
         {
-            handleConnection(clientInfo);
+            handleConnection(this->conFile, clientInfo);
             clientInfo.request.clear();
             FD_SET(socket, &mainWriteSet);
             FD_CLR(socket, &mainReadSet);
@@ -156,7 +156,7 @@ void ServerManager::handleSendingData(int socket)
     size_t &bytesSent = clientInfo.responseBytesSent;
 
     ssize_t bytesWriting = write(socket, clientInfo.response.c_str() + bytesSent, clientInfo.response.size() - bytesSent);
-    
+
     if (bytesWriting == -1)
     {
         FD_CLR(socket, &mainWriteSet);
@@ -169,9 +169,14 @@ void ServerManager::handleSendingData(int socket)
     if (bytesSent >= clientInfo.response.size())
     {
         FD_CLR(socket, &mainWriteSet);
-        FD_SET(socket, &mainReadSet);
-        clientInfo.response.clear();
-        bytesSent = 0;
+        if (clientInfo.keepAlive){
+            FD_SET(socket, &mainReadSet);
+            clientInfo.response.clear();
+            bytesSent = 0;
+        }else{
+            clientInfos.erase(clientIt);
+            close(socket);
+        }
     }
 }
 
@@ -225,5 +230,5 @@ void ServerManager::run()
             std::cerr << error << '\n';
         }
     }
-    
+
 }

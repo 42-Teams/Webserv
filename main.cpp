@@ -28,7 +28,7 @@ int main(int argc, char *argv[])
     {
         std::cerr << errMessage << '\n';
     }
-    
+
 
     return (EXIT_SUCCESS);
 }

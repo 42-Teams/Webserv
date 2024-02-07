@@ -52,8 +52,29 @@ int acceptNewConnection(int serverSocket)
     return (clientSocket);
 }
 
-void handleConnection(clientInfo &clientInfo)
+Server& findServer(std::vector<Server> &conFile, Request &request)
 {
-    std::string body = "Hello, World!";
-    clientInfo.response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + std::to_string(body.size()) + "\r\n\r\n" + body;
+    std::string host = request.get_headers()["Host"];
+    std::string port = host.substr(host.find(":") + 1);
+    host = host.substr(0, host.find(":"));
+    for (size_t i = 0; i < conFile.size(); i++)
+    {
+        if (conFile[i].get_port() == std::atoi(port.c_str()) && conFile[i].get_name() == host)
+            return conFile[i];
+    }
+    for (size_t i = 0; i < conFile.size(); i++)
+    {
+        if (conFile[i].get_port() == std::atoi(port.c_str()))
+            return conFile[i];
+    }
+    return conFile[0];
+}
+
+void handleConnection(std::vector<Server> &conFile, clientInfo &clientInfo)
+{
+    Request request(clientInfo.request);
+    if (request.get_headers()["Connection"] == "keep-alive")
+        clientInfo.keepAlive = true;
+    Response response(request,findServer(conFile, request));
+    clientInfo.response = response.get_response();
 }

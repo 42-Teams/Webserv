@@ -57,7 +57,7 @@ std::string FirstPart(std::string line)
     std::string array[] = {"server_name", "port", "index", "auto_index", "error", "root", "method",
     "cgi", "[server]", "[location]", "name", "upload_path", "upload_enable", "body_size", ""};
     std::vector<std::string> vec(array, array + 15);
-    
+
     for (int x = 0; line[x] && line[x] != ' ' && line[x] != '='; x++)
         str += line[x];
     for (std::vector<std::string>::iterator it = vec.begin(); it != vec.end() && *it != str; ++it)
@@ -145,6 +145,8 @@ std::pair<int, std::string>    errors_case(std::string line)
 void    print_all(std::vector<Server> &vec)
 {
 //  Description: This function is just for testing, it print all the data that we have in the vector of server
+    if (vec.begin() == vec.end())
+        std::cout << "i cant print anything, the vector is empty\n";
     for(std::vector<Server>::iterator serv_it = vec.begin(); serv_it != vec.end(); serv_it++)
     {
         std::vector<Location>::iterator loct_it = serv_it->get_locations_begin();
@@ -155,6 +157,8 @@ void    print_all(std::vector<Server> &vec)
         std::cout << "root = " << serv_it->get_root() << std::endl;
         for(std::map<int, std::string>::iterator err = serv_it->get_errors_begin(); err != serv_it->get_errors_end(); err++)
             std::cout << "error = " << err->first << " " << err->second << std::endl;
+        if (serv_it->get_body_size() != -1)
+            std::cout << "body_size = " << serv_it->get_body_size() << std::endl;
         while(loct_it != loct_end)
         {
             std::cout << "\n[location]\n";
@@ -171,8 +175,6 @@ void    print_all(std::vector<Server> &vec)
             for(std::map<std::string, std::string>::iterator it = loct_it->get_cgi_begin(); it != loct_it->get_cgi_end(); it++)
                 std::cout << "cgi = " << it->first << " : " << it->second << std::endl;
             std::cout << "auto_index = " << loct_it->get_auto_index() << std::endl;
-            if (loct_it->get_body_size() != -1)
-                std::cout << "body_size = " << loct_it->get_body_size() << std::endl;
             loct_it++;
         }
         std::cout << "\n";
@@ -229,7 +231,7 @@ std::vector<Server> ServerFill(std::string conf)
         {
             Server S;
             vec.push_back(S);
-            serv_it = vec.end() - 1; 
+            serv_it = vec.end() - 1;
             block = line;
         }
         else if (line == "[location]")
@@ -251,6 +253,8 @@ std::vector<Server> ServerFill(std::string conf)
             serv_it->set_root(SecondPart(line));
         else if (block == "[server]" && var == "error")
             serv_it->set_errors(errors_case(line));
+        else if (block == "[server]" && var == "body_size" && serv_it->get_body_size() == 1048576)
+            serv_it->set_body_size(port_case(SecondPart(line)));
 
         else if (block == "[location]" && var == "name" && loc_it->get_location_name().empty())
             loc_it->set_location_name(SecondPart(line));
@@ -268,8 +272,6 @@ std::vector<Server> ServerFill(std::string conf)
             loc_it->set_cgi(SecondPart(line));
         else if (block == "[location]" && var == "auto_index" && k++ == 0)
             loc_it->set_auto_index(return_bool(SecondPart(line)));
-        else if (block == "[location]" && var == "body_size" && loc_it->get_body_size() == 1048576)
-            loc_it->set_body_size(port_case(SecondPart(line)));
         else if (line != "[server]" && line != "[location]")
             return (throw std::string("Syntax Error"), vec);
         if (global_var == true)
@@ -278,4 +280,19 @@ std::vector<Server> ServerFill(std::string conf)
     if (checkOptionals(vec))
         throw std::string("Syntax Error");
     return (vec);
+}
+
+std::map<std::string, std::string>    &Location::get_cgi(){
+//  Description: This function is a getter for the cgi map, it return the map
+    return (this->cgi);
+}
+
+std::vector<Location>   &Server::get_locations(){
+//  Description: This function is a getter for the locations vector, it return the vector
+    return (this->locations);
+}
+
+std::map<int, std::string>                    &Server::get_errors(){
+//  Description: This function is a getter for the errors map, it return the map
+    return (this->errors);
 }

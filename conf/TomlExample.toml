@@ -1,0 +1,19 @@
+[server]
+server_name = localhost
+port = 8080
+root = ./files
+body_size = 100
+
+[location]
+name = /
+root = ./files
+index = index.html
+method = dELETe
+method = POST
+method = GET
+[location]
+name = /cgi
+root = ./files/cgi-bin
+index = index.php
+method = GET
+cgi = php:./cgi-bin/php-cgi|py:/usr/local/bin/python3

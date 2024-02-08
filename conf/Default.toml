@@ -1,0 +1,9 @@
+[server]
+server_name = localhost
+port = 80
+root = ./webser_default
+
+[location]
+name = /
+root = ./webser_default
+index = index.html

@@ -45,8 +45,10 @@ void    Location::set_index(std::string Index)
 
 void    Location::set_methods(std::string method)
 {
+    for (size_t i = 0; i < method.length(); i++)
+        method[i] = std::toupper(method[i]);
 //  Description: Location::methods setter and check if the method is GET, POST or DELETE otherwise it call the error function
-    if (!CaseEqual(method, "GET") && !CaseEqual(method, "POST") && !CaseEqual(method, "DELETE"))
+    if (method != "GET" && method != "POST" && method != "DELETE")
         global_var = true;
     this->methods.push_back(method);
 }

@@ -16,9 +16,14 @@ int main(int argc, char *argv[])
 {
     try
     {
-        if (argc != 2)
+        if (argc > 2)
             throw std::string("./webserv filename");
-        std::vector<Server> conFile = ServerFill(argv[1]);
+        std::string filename;
+        if (argc == 1)
+            filename = "conf/Default.toml";
+        else
+            filename = argv[1];
+        std::vector<Server> conFile = ServerFill(filename);
         ServerManager serverManager(conFile);
 
         serverManager.setupServers();

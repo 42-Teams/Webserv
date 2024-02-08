@@ -62,12 +62,19 @@ void remove_slash(std::string& str){
 	}
 }
 
+Location get_Home_location(std::vector<Location> locations){
+	for (size_t i = 0; i < locations.size(); i++){
+		if (locations[i].get_location_name() == "/")
+			return locations[i];
+	}
+	throw std::out_of_range("404");
+}
+
 
 Location find_location(std::vector<Location> locations, std::string uri){
 	remove_slash(uri);
-	if (uri == ""){
-		return locations[0];
-	}
+	if (uri == "")
+		return get_Home_location(locations);
 	std::stringstream ss(uri);
 	std::string tmp;
 	std::string line;
@@ -82,6 +89,13 @@ Location find_location(std::vector<Location> locations, std::string uri){
 		}
 	}
 	throw std::out_of_range("404");
+}
+
+bool need_cgi(std::string file, std::map<std::string, std::string>& cgi){
+	std::string ext = file.substr(file.find_last_of(".") + 1);
+	if (cgi.find(ext) != cgi.end())
+		return true;
+	return false;
 }
 
 Response::Response(Request& request, Server& server)
@@ -124,7 +138,7 @@ Response::~Response()
 std::string NameGenerator(){
 	std::string name = "tmp";
 	std::string alphabet = "abcdefghijklmnopqrstuvwxyz";
-	for (size_t i = 0; i < 10; i++){
+	for (size_t i = 0; i < 20; i++){
 		name += alphabet[rand() % 26];
 	}
 	return name;
@@ -168,7 +182,7 @@ void Response::non_upload(Request& request, Server& server, Location &location)
 	if (S_ISDIR(file_stat.st_mode))
 		post_dir(request, server,location);
 	else if (S_ISREG(file_stat.st_mode)){
-		if (file_path.find("cgi-bin") != std::string::npos){
+		if (!location.get_cgi().empty() && need_cgi(file_path, location.get_cgi())){
 			Cgi cgi;
 			cgi.execute_cgi(file_path, location.get_cgi(), request);
 			_response = cgi.getResponse();
@@ -203,7 +217,7 @@ void Response::Get(Request& request, Server& server, Location &location)
 	if (S_ISDIR(file_stat.st_mode))
 		get_dir(request, server, location);
 	else if (S_ISREG(file_stat.st_mode)){
-		if (file_path.find("cgi-bin") != std::string::npos){
+		if (!location.get_cgi().empty() && need_cgi(file_path, location.get_cgi())){
 			Cgi cgi;
 			cgi.execute_cgi(file_path, location.get_cgi(), request);
 			_response = cgi.getResponse();
@@ -215,6 +229,8 @@ void Response::Get(Request& request, Server& server, Location &location)
 				file.close();
 				std::string file_extension = file_path.substr(file_path.find_last_of(".") + 1);
 				std::string content_type = mime_types[file_extension];
+				if (content_type == "")
+					content_type = "application/octet-stream";
 				_response = "HTTP/1.1 200 OK\r\ncontent-type: " + content_type + "\r\ncontent-length: " + to_string(page.length()) + "\r\n\r\n" + page;
 			}
 			else
@@ -238,8 +254,9 @@ void Response::Delete(Request& request, Server& server, Location &location)
 	if (S_ISDIR(file_stat.st_mode))
 		delete_dir(request, server,location);
 	else if (S_ISREG(file_stat.st_mode)){
-		if (path.find("cgi-bin") != std::string::npos){
+		if (!location.get_cgi().empty() && need_cgi(file_path, location.get_cgi())){
 			Cgi cgi;
+			cgi.execute_cgi(file_path, location.get_cgi(), request);
 			_response = cgi.getResponse();
 		}
 		else{
@@ -344,8 +361,9 @@ void Response::get_dir(Request& request, Server& server, Location& location)
 			throw std::runtime_error("403");
 	}
 	else{
-		if (path.find("cgi-bin") != std::string::npos){
+		if (!location.get_cgi().empty() && need_cgi(index, location.get_cgi())){
 			Cgi cgi;
+			cgi.execute_cgi(file_path+index, location.get_cgi(), request);
 			_response = cgi.getResponse();
 		}
 		else{
@@ -383,8 +401,9 @@ void Response::post_dir(Request& request, Server& server, Location& location)
 		throw std::runtime_error("403");
 	}
 	else{
-		if (path.find("cgi-bin") != std::string::npos){
+		if (!location.get_cgi().empty() && need_cgi(index, location.get_cgi())){
 			Cgi cgi;
+			cgi.execute_cgi(file_path+index, location.get_cgi(), request);
 			_response = cgi.getResponse();
 		}
 		else{
@@ -431,11 +450,11 @@ void Response::delete_dir(Request& request, Server& server, Location& location)
 		path += "/";
 	std::string file_path = path;
 	std::string index = location.get_index();
-	if (path.find("cgi-bin") != std::string::npos){
+	if (!location.get_cgi().empty() && need_cgi(index, location.get_cgi())){
 		if (index == ""){
 			throw std::runtime_error("403");
 		Cgi cgi;
-		cgi.execute_cgi(file_path, location.get_cgi(), request);
+		cgi.execute_cgi(file_path+index, location.get_cgi(), request);
 		_response = cgi.getResponse();
 	}
 	}

@@ -2,13 +2,12 @@
 server_name = localhost
 port = 8080
 root = ./files
-body_size = 100
 
 [location]
 name = /
 root = ./files
 index = index.html
-method = dELETe
+method = dElETe
 method = POST
 method = GET
 [location]
@@ -17,3 +16,8 @@ root = ./files/cgi-bin
 index = index.php
 method = GET
 cgi = php:./cgi-bin/php-cgi|py:/usr/local/bin/python3
+[location]
+name = /upload
+root = ./files
+upload_path = /Users/mkhairou/Desktop/to_push/webserve_uploads
+upload_enable = true

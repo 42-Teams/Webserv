@@ -22,7 +22,6 @@ Location::Location()
 {
     auto_index = false;
     upload_enable = false;
-    body_size = 1048576;   // 1048576 = 1 MB
 }
 
 Location::~Location()
@@ -37,15 +36,19 @@ void    Location::set_index(std::string Index)
 {
 //  Description: location::index setter and check if the it ends with a .html if not call the error function
     std::string html = ".html";
-    if (&Index[Index.length()-5] != html || Index.length() <= 5)
-        global_var = true;
+    std::string php = ".php";
+    if ((&Index[Index.length()-5] != html || Index.length() <= 5) &&
+        (&Index[Index.length()-4] != php || Index.length() <= 4))
+            global_var = true;
     this->index = Index;
 }
 
 void    Location::set_methods(std::string method)
 {
+    for (size_t i = 0; i < method.length(); i++)
+        method[i] = std::toupper(method[i]);
 //  Description: Location::methods setter and check if the method is GET, POST or DELETE otherwise it call the error function
-    if (!CaseEqual(method, "GET") && !CaseEqual(method, "POST") && !CaseEqual(method, "DELETE"))
+    if (method != "GET" && method != "POST" && method != "DELETE")
         global_var = true;
     this->methods.push_back(method);
 }
@@ -87,10 +90,10 @@ void    Location::set_cgi(std::string CgiPath)
             break;
         part1.clear();
         part2.clear();
-        // std::cout << "              is: " << CgiPath[index] << std::endl;   
+        // std::cout << "              is: " << CgiPath[index] << std::endl;
         index = jump_to_next_char(CgiPath, index, '|');
-        // std::cout << "              is: " << CgiPath[index] << std::endl;   
-    }    
+        // std::cout << "              is: " << CgiPath[index] << std::endl;
+    }
 }
 
 void    Location::set_auto_index(bool AutoIndex)
@@ -112,16 +115,6 @@ void Location::set_upload_path(const std::string& upload_path)
 void Location::set_upload_enable(bool upload_enable)
 {
     this->upload_enable = upload_enable;
-}
-
-void Location::set_body_size(int bodySize)
-{
-    this->body_size = bodySize;
-}
-
-const int &Location::get_body_size() const
-{
-    return this->body_size;
 }
 
 const std::string &Location::get_root() const
@@ -207,7 +200,8 @@ void    Location::clear_cgi()
 
 Server::Server()
 {
-    this->set_port(-1);
+    this->port = -1;             // -1 is a default value to know in case no port is set in the config file
+    this->body_size = 1048576;   // 1048576 = 1 MB
 }
 
 Server::~Server()
@@ -253,15 +247,15 @@ const int &Server::get_port() const
     return port;
 }
 
-// const std::string &Server::get_index() const
-// {
-//     return index;
-// }
+void Server::set_body_size(int bodySize)
+{
+    this->body_size = bodySize;
+}
 
-// const bool &Server::get_auto_index() const
-// {
-//     return auto_index;
-// }
+const int &Server::get_body_size() const
+{
+    return this->body_size;
+}
 
 std::vector<Location>::iterator Server::get_locations_begin()
 {

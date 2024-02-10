@@ -1,23 +1,24 @@
 [server]
 server_name = localhost
 port = 8080
-root = ./files
-
+root = ./webser_site
+index = index.html
 [location]
 name = /
-root = ./files
+root = ./webser_site
 index = index.html
-method = dElETe
-method = POST
-method = GET
+auto_index = true
+cgi = php:./cgi-bin/php-cgi
+[location]
+name = /for
+root = ./webser_site/forms
+auto_index = true
 [location]
 name = /cgi
-root = ./files/cgi-bin
-index = index.php
-method = GET
-cgi = php:./cgi-bin/php-cgi|py:/usr/local/bin/python3
-[location]
-name = /upload
-root = ./files
-upload_path = /Users/mkhairou/Desktop/to_push/webserve_uploads
-upload_enable = true
+root = ./webser_site/cgi-bin
+cgi = py:/usr/local/bin/python3|php:./cgi-bin/php-cgi
+[server]
+server_name = localhost
+port = 8081
+root = ./webser_default
+index = index.html

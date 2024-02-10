@@ -17,9 +17,9 @@ void init_mime_types(std::map<std::string, std::string>& mime_types){
 	if (file_type.is_open()){
 		std::string line;
 		while (getline(file_type, line)){
-			line.pop_back();
-			if (line.back() == ';')
-				line.pop_back();
+			line.erase(line.size() -  1);
+			if (line[line.size() -  1] == ';')
+				line.erase(line.size() -  1);
 			std::string type = line.substr(0, line.find("|"));
 			std::string ext = line.substr(line.find("|") + 1, line.length()-1);
 			std::stringstream ss(ext);
@@ -31,7 +31,7 @@ void init_mime_types(std::map<std::string, std::string>& mime_types){
 		file_type.close();
 	}
 	else{
-		std::cout << "[WARNING] failed to open mime.types file using default mime types" << std::endl;
+		std::cerr << "[WARNING] failed to open mime.types file using default mime types" << std::endl;
 		mime_types["html"] = "text/html";
 		mime_types["css"] = "text/css";
 		mime_types["js"] = "text/javascript";
@@ -56,7 +56,7 @@ void remove_slash(std::string& str){
 		if (str[i] == '/' && str[i + 1] == '/')
 			str.erase(i,1);
 	}
-	if (str.back() != '/' && str.rfind(".") != std::string::npos)
+	if (str[str.size() -  1] != '/' && str.rfind(".") != std::string::npos)
 	{
 		str.erase(str.find_last_of("/") + 1, str.length());
 	}
@@ -88,7 +88,7 @@ Location find_location(std::vector<Location> locations, std::string uri){
 			}
 		}
 	}
-	throw std::out_of_range("404");
+	return get_Home_location(locations);
 }
 
 bool need_cgi(std::string file, std::map<std::string, std::string>& cgi){
@@ -327,17 +327,29 @@ void Response::get_dir(Request& request, Server& server, Location& location)
 	std::string path = request.get_path();
 	if (path[path.length() - 1] != '/'){
 		path += "/";
-		_response = "HTTP/1.1 301 Moved Permanently\r\nLocation: " + path + "\r\n\r\n";
+		_response = "HTTP/1.1 301 Moved Permanently\r\ncontent-length: 0\r\nLocation: " + path + "\r\n\r\n";
 		return ;
 	}
 	std::string root = location.get_root();
-	path.replace(path.find(location.get_location_name()), location.get_location_name().length(), location.get_root());
+	if (location.get_location_name() != "/")
+		path = path.substr(location.get_location_name().length(), path.length());
+	path = root + path;
 	if (path[path.length() - 1] != '/')
 		path += "/";
 	std::string file_path = path;
 	std::string index = location.get_index();
 	if (index == ""){
-		if (location.get_auto_index()){
+		if (stat((file_path+"index.html").c_str(), NULL) == 0){
+			std::ifstream file((file_path+"index.html").c_str(), std::ios::binary);
+			if (file.is_open()){
+				std::string page((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+				file.close();
+				_response = "HTTP/1.1 200 OK\r\ncontent-type: text/html\r\ncontent-length: " + to_string(page.size()) + "\r\n\r\n" + page;
+			}
+			else
+				throw std::runtime_error("404");
+		}
+		else if (location.get_auto_index()){
 			DIR* dir = opendir(file_path.c_str());
 			if (dir == NULL){
 				throw std::runtime_error("404");
@@ -388,7 +400,7 @@ void Response::post_dir(Request& request, Server& server, Location& location)
 	std::string path = request.get_path();
 	if (path[path.length() - 1] != '/'){
 		path += "/";
-		_response = "HTTP/1.1 301 Moved Permanently\r\nLocation: " + path + "\r\n\r\n";
+		_response = "HTTP/1.1 301 Moved Permanently\r\ncontent-length: 0\r\nLocation: " + path + "\r\n\r\n";
 		return ;
 	}
 	std::string root = location.get_root();

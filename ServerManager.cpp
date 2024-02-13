@@ -47,6 +47,7 @@ clientInfo ServerManager::newClientInfo(int clientSocket) const
     client.isTransferChunked = false;
     client.responseBytesSent = 0;
     client.keepAlive = false;
+    client.lastActivity = time(NULL);
     return (client);
 }
 
@@ -130,6 +131,8 @@ void ServerManager::handleIncomingData(int socket)
 
     if (bytesRead > 0)
     {
+        // Update the last activity time for the client
+        clientInfo.lastActivity = time(NULL);
         // First time reading from the client, parse the HTTP request header.
         if (clientInfo.request.empty())
             updateClientInfo(clientInfo, buffer, bytesRead);
@@ -165,7 +168,7 @@ void ServerManager::handleSendingData(int socket)
         return ;
     }
     bytesSent += bytesWriting;
-
+    clientInfo.lastActivity = time(NULL); // Update the last activity time for the client
     if (bytesSent >= clientInfo.response.size())
     {
         FD_CLR(socket, &mainWriteSet);
@@ -195,17 +198,38 @@ bool ServerManager::isServerSocket(int socket) const
     return (std::find(serverSockets.begin(), serverSockets.end(), socket) != serverSockets.end());
 }
 
+void ServerManager::filterInactiveConnections() {
+    time_t now = time(NULL);
+    for (clientInfoIt it = clientInfos.begin(); it != clientInfos.end();) {
+        if (now - it->second.lastActivity > INACTIVITY_TIMEOUT) {
+            int socket = it->first;
+            FD_CLR(socket, &mainReadSet);
+            FD_CLR(socket, &mainWriteSet);
+            close(socket);
+            clientInfos.erase(it++);
+        } else {
+            ++it;
+        }
+    }
+}
+
 void ServerManager::run()
 {
-
+    signal(SIGPIPE, SIG_IGN);
     while (true)
     {
+        filterInactiveConnections(); // Filter inactive connections
         FD_COPY(&mainReadSet, &workingReadSet);
         FD_COPY(&mainWriteSet, &workingWriteSet);
+        // Set up the timeval struct for the select() call.
+        struct timeval timeout;
+        timeout.tv_sec = INACTIVITY_TIMEOUT;
+        timeout.tv_usec = 0;
         try
         {
-            check_error(select(max_fds + 1, &workingReadSet, &workingWriteSet, NULL, 0), -1); // check ready socket file descriptors.
-            for (int socketFD = 0; socketFD <= max_fds; ++socketFD)
+            check_error(select(max_fds + 1, &workingReadSet, &workingWriteSet, NULL, &timeout), -1); // check ready socket file descriptors.
+
+            for (int socketFD = 3; socketFD <= max_fds; ++socketFD)
             {
                 try
                 {

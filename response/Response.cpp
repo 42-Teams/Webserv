@@ -175,7 +175,7 @@ void Response::non_upload(Request& request, Server& server, Location &location)
 	std::string path = request.get_path();
 	std::string root = location.get_root();
 	path = path.substr(location.get_location_name().length(), path.length());
-	std::string file_path = root + path;
+	std::string file_path = server.get_root() + root + path;
 	struct stat file_stat;
 	if (stat(file_path.c_str(), &file_stat) < 0)
 		throw std::runtime_error("404");
@@ -210,7 +210,7 @@ void Response::Get(Request& request, Server& server, Location &location)
 	std::string root = location.get_root();
 	if (location.get_location_name() != "/")
 		path = path.substr(location.get_location_name().length(), path.length());
-	std::string file_path = root + path;
+	std::string file_path = server.get_root() + root + path;
 	struct stat file_stat;
 	if (stat(file_path.c_str(), &file_stat) < 0)
 		throw std::runtime_error("404");
@@ -247,7 +247,7 @@ void Response::Delete(Request& request, Server& server, Location &location)
 	std::string root = location.get_root();
 	if (location.get_location_name() != "/")
 		path = path.substr(location.get_location_name().length(), path.length());
-	std::string file_path = root + path;
+	std::string file_path = server.get_root() + root + path;
 	struct stat file_stat;
 	if (stat(file_path.c_str(), &file_stat) < 0)
 		throw std::runtime_error("404");
@@ -272,7 +272,7 @@ std::string Response::get_error_page(int code, Server& server)
 {
 	std::map<int, std::string> error_pages = server.get_errors();
 	if (error_pages.find(code) != error_pages.end()){
-		std::string path = server.get_root() +"/" + error_pages[code];
+		std::string path = server.get_root() + "/" + error_pages[code];
 		std::ifstream file(path.c_str());
 		if (file.is_open()){
 			std::string line;
@@ -336,7 +336,7 @@ void Response::get_dir(Request& request, Server& server, Location& location)
 	path = root + path;
 	if (path[path.length() - 1] != '/')
 		path += "/";
-	std::string file_path = path;
+	std::string file_path = server.get_root() + path;
 	std::string index = location.get_index();
 	if (index == ""){
 		if (stat((file_path+"index.html").c_str(), NULL) == 0){
@@ -407,7 +407,7 @@ void Response::post_dir(Request& request, Server& server, Location& location)
 	path.replace(path.find(location.get_location_name()), location.get_location_name().length(), location.get_root());
 	if (path[path.length() - 1] != '/')
 		path += "/";
-	std::string file_path = path;
+	std::string file_path = server.get_root() + path;
 	std::string index = location.get_index();
 	if (index == ""){
 		throw std::runtime_error("403");

@@ -190,7 +190,11 @@ Location    default_location(std::vector<Server>::iterator serv_it)
 
     L.set_location_name("/");
     L.set_root(serv_it->get_root());
-    L.set_index(serv_it->get_index());
+    std::string index = serv_it->get_index();
+    if (index.empty())
+        L.set_index("index.html");
+    else
+        L.set_index(index);
     L.set_methods("GET");
     L.set_methods("POST");
     L.set_methods("DELETE");
@@ -260,8 +264,6 @@ std::vector<Server> ServerFill(std::string conf)
         if (file.eof())
             break;
         std::getline(file, line, '\n');
-        // if (line[line.size() - 1] == '\r')
-        //     line.erase(line.size() - 1);
         line = TrimeWhiteSpaces(line);
         if (line.empty())
             continue;

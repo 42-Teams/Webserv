@@ -92,9 +92,7 @@ void    Location::set_cgi(std::string CgiPath)
             break;
         part1.clear();
         part2.clear();
-        // std::cout << "              is: " << CgiPath[index] << std::endl;
         index = jump_to_next_char(CgiPath, index, '|');
-        // std::cout << "              is: " << CgiPath[index] << std::endl;
     }
 }
 

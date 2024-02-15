@@ -27,11 +27,12 @@ void ServerManager::setupServers()
         {
             int socketFD = setupServer(conFile.at(i).get_port(), BACKLOG); // create new socket for the server
             FD_SET(socketFD, &mainReadSet);
+            std::cout << "\033[1;32mServer listening on port " << conFile.at(i).get_port() << "\033[0m" << std::endl;
             serverSockets.push_back(socketFD);
         }
         catch(const char *error)
         {
-            std::cerr << "ERROR: " << error << '\n';
+            std::cerr << "\033[1;31m" << error << "\033[0m" << '\n';
         }
     }
     max_fds = serverSockets.back();
@@ -245,13 +246,13 @@ void ServerManager::run()
                 }
                 catch(const char *error)
                 {
-                    std::cerr << error << '\n';
+                    std::cerr << "\033[1;31m" << error << "\033[0m" << '\n';
                 }
             }
         }
         catch(const char *error)
         {
-            std::cerr << error << '\n';
+            std::cerr << "\033[1;31m" << error << "\033[0m" << '\n';
         }
     }
 

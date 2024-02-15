@@ -67,7 +67,7 @@ typedef struct clientInfo
     time_t lastActivity;            ///< Time of the last activity on the connection.
 } clientInfo;
 
-typedef std::unordered_map<int, clientInfo> clientInfoList;   ///< Map of client socket file descriptors to client information.
+typedef std::map<int, clientInfo> clientInfoList;   ///< Map of client socket file descriptors to client information.
 typedef clientInfoList::iterator clientInfoIt;                ///< Iterator for the clientInfoList.
 
 /**

@@ -16,7 +16,6 @@ void check_error(int sys, int socketFD)
 {
     if (sys == -1)
     {
-        std::cerr << strerror(errno) << std::endl;
         close(socketFD);
         throw strerror(errno);
     }

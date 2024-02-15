@@ -31,8 +31,7 @@ void init_mime_types(std::map<std::string, std::string>& mime_types){
 		file_type.close();
 	}
 	else{
-		std::cerr << "[WARNING] failed to open mime.types file using default mime types" << std::endl;
-		mime_types["html"] = "text/html";
+		std::cerr << "\033[33m[WARNING] failed to open mime.types file using default mime types\033[0m" << std::endl;		mime_types["html"] = "text/html";
 		mime_types["css"] = "text/css";
 		mime_types["js"] = "text/javascript";
 		mime_types["jpg"] = "image/jpeg";
@@ -458,9 +457,6 @@ void Response::delete_dir(Request& request, Server& server, Location& location, 
 	if (path[path.length() - 1] != '/')
 		throw std::runtime_error("409");
 	std::string root = location.get_root();
-	path.replace(path.find(location.get_location_name()), location.get_location_name().length(), location.get_root());
-	if (path[path.length() - 1] != '/')
-		path += "/";
 	std::string file_path = path;
 	std::string index = location.get_index();
 	try{

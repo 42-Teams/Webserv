@@ -1,5 +1,5 @@
 CC = c++
-CFLAGS = -Wall -Werror -Wextra -std=c++98 -fsanitize=address
+CFLAGS = -Wall -Werror -Wextra -std=c++98
 NAME = webserv
 SRCS = server_utils.cpp main.cpp ServerManager.cpp ./response/Cgi.cpp ./response/Request.cpp ./response/Response.cpp ./parsing/parsing.cpp ./parsing/ParsingUtils.cpp
 OBJS = $(patsubst %.cpp,obj/%.o,$(SRCS))

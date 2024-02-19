@@ -198,12 +198,7 @@ bool posted_to_file(std::string uri){
 
 void Response::Post(Request& request, Server& server, Location &location)
 {
-
-	if (location.get_upload_enable() && posted_to_file(request.get_path()))
-		upload_file(request, server, location);
-	else{
-		non_upload(request, server, location);
-	}
+	non_upload(request, server, location);
 }
 
 void Response::Get(Request& request, Server& server, Location &location)

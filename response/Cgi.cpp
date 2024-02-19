@@ -20,6 +20,17 @@ Cgi::~Cgi()
 {
 }
 
+std::string get_upload_path(std::string file, std::string upload_path)
+{
+	struct  stat st;
+	if (upload_path.empty())
+		return (file.substr(0, file.find_last_of('/')));
+	else if (stat(upload_path.c_str(), &st) == -1)
+		return (file.substr(0, file.find_last_of('/')));
+	else
+		return (upload_path);
+}
+
 std::map<std::string, std::string> setup_env(std::string file, Request& request, std::string upload_path)
 {
 	std::map<std::string, std::string> env;
@@ -32,7 +43,7 @@ std::map<std::string, std::string> setup_env(std::string file, Request& request,
 	env["SCRIPT_NAME"] = file.substr(file.find_last_of('/') + 1);
 	env["SERVER_SOFTWARE"] = "webserv";
 	env["GATEWAY_INTERFACE"] = "CGI/1.1";
-	env["UPLOAD_PATH"] = upload_path;
+	env["UPLOAD_PATH"] = get_upload_path(file, upload_path);
 	return (env);
 }
 
@@ -76,11 +87,15 @@ void Cgi::execute_cgi(std::string file, std::map<std::string,std::string> &cgis 
 	if (pipe(fd) == -1)
 		throw std::runtime_error("500");
 	pid_t pid = fork();
-	if (pid == -1)
-		throw std::runtime_error("500");
 	char **argc = new char*[3];
 	char **envp = get_env(setup_env(file, request, upload_path));
-
+	if (pid == -1){
+		delete[] argc;
+		for (int i = 0; envp[i]; i++)
+			delete[] envp[i];
+		delete[] envp;
+		throw std::runtime_error("500");
+	}
 	if (pid == 0)
 	{
 		argc[0] = (char *)path.c_str();

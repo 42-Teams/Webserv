@@ -62,36 +62,48 @@ std::string FirstPart(std::string line)
         str += line[x];
     for (std::vector<std::string>::iterator it = vec.begin(); it != vec.end() && *it != str; ++it)
     {
-        if (it + 1 == vec.end())
+        if (it + 1 == vec.end()){
+
             global_var = true;
+        }
     }
     return (str);
+}
+
+void count_of(std::string str, char c)
+{
+    int count = 0;
+    for (int x = 0; str[x]; x++)
+    {
+        if (str[x] == c)
+            count++;
+    }
+    if (count > 1 || count == 0)
+        throw std::string("Syntax Error");
 }
 
 std::string SecondPart(std::string line)
 {
 //  Description: Take a string as parameter and return the second part of it after the first space or '='
+    count_of(line, '=');
     int index = line.find('=');
     if (line[index] && line[index+1] && line[index+1] == ' ')
         index++;
     if (std::strncmp(&line[index+1], "", 1) == 0)
         global_var = true;
+    std::string str = &line[index+1];
+    if (str.find(' ') != std::string::npos)
+        throw std::string("Syntax Error");
     return (&line[index+1]);
 }
 
-unsigned int port_case(std::string value)
+unsigned int port_case(std::string value, bool port)
 {
 //  Description: I use this function while reading the port part of the conf file, it take's a string as parameter and return the port number
-    unsigned int un;
-    std::stringstream ss(value);
-
-    for (int x = 0; value[x]; x++)
-    {
-        if (!std::isdigit(value[x]))
+    char *letter;
+    double un = std::strtod(value.c_str(), &letter);
+    if (*letter || un < 0 || (un > 65535 && port))
         global_var = true;
-    }
-    if (!(ss >> un))
-        return (global_var = true, 0);
     return (un);
 }
 
@@ -117,68 +129,62 @@ bool    return_bool(std::string value)
         return true;
     else if (CaseEqual(value, "false"))
         return false;
-    else
+    else{
+
         global_var = true;
+    }
     return true;
+}
+
+std::vector<std::string> split(std::string str, char c)
+{
+    std::vector<std::string> vec;
+    for (int x = 0; str[x]; x++)
+    {
+        std::string temp;
+        while (str[x] && str[x] != c)
+            temp += str[x++];
+        temp.erase(std::remove(temp.begin(), temp.end(), ' '), temp.end());
+        vec.push_back(temp);
+    }
+    return (vec);
 }
 
 std::pair<int, std::string>    errors_case(std::string line)
 {
 //  Description: I use this function while reading the errors part of the conf file, it take's a string as parameter and return a pair of the error code and the error path
-    int x = 0;
     int error_code;
     std::string path;
     std::string html = ".html";
     std::string sec_part = SecondPart(line);
-    std::stringstream ss(sec_part);
-
-    if (!(ss >> error_code))
-        global_var = true;
-    while(sec_part[x] && (std::isdigit(sec_part[x]) || sec_part[x] == ' '))
-        x++;
-    path = &sec_part[x];
+    std::vector<std::string> vec = split(sec_part, ':');
+    char* letter;
+    error_code = std::strtod(vec[0].c_str(), &letter);
+    if (*letter || error_code < 100 || error_code > 599)
+        throw std::string("Syntax Error");
+    path = vec[1];
     if (&path[path.length()-5] != html || path.length() <= 5)
         global_var = true;
     return (std::make_pair(error_code, path));
 }
 
-void    print_all(std::vector<Server> &vec)
+Location    default_location(std::vector<Server>::iterator serv_it)
 {
-//  Description: This function is just for testing, it print all the data that we have in the vector of server
-    if (vec.begin() == vec.end())
-        std::cout << "i cant print anything, the vector is empty\n";
-    for(std::vector<Server>::iterator serv_it = vec.begin(); serv_it != vec.end(); serv_it++)
-    {
-        std::vector<Location>::iterator loct_it = serv_it->get_locations_begin();
-        std::vector<Location>::iterator loct_end = serv_it->get_locations_end();
-        std::cout << "[server]\n";
-        std::cout << "server_name = " << serv_it->get_name() << std::endl;
-        std::cout << "port = " << serv_it->get_port() << std::endl;
-        std::cout << "root = " << serv_it->get_root() << std::endl;
-        for(std::map<int, std::string>::iterator err = serv_it->get_errors_begin(); err != serv_it->get_errors_end(); err++)
-            std::cout << "error = " << err->first << " " << err->second << std::endl;
-        if (serv_it->get_body_size() != -1)
-            std::cout << "body_size = " << serv_it->get_body_size() << std::endl;
-        while(loct_it != loct_end)
-        {
-            std::cout << "\n[location]\n";
-            std::cout << "location_name = " << loct_it->get_location_name() << std::endl;
-            std::cout << "root = " << loct_it->get_root() << std::endl;
-            if (!loct_it->get_index().empty())
-                std::cout << "index = " <<  loct_it->get_index()  << std::endl;
-            if (!loct_it->get_upload_path().empty())
-                std::cout << "upload_path = " << loct_it->get_upload_path() << std::endl;
-            std::cout << "upload_enable = " << loct_it->get_upload_enable() << std::endl;
+//  Description: This function is used to add a default location to the server if no location is specified
+    Location L;
 
-            for(std::vector<std::string>::iterator it = loct_it->get_methods_begin(); it != loct_it->get_methods_end(); it++)
-                std::cout << "method = " << *it << std::endl;
-            for(std::map<std::string, std::string>::iterator it = loct_it->get_cgi_begin(); it != loct_it->get_cgi_end(); it++)
-                std::cout << "cgi = " << it->first << " : " << it->second << std::endl;
-            std::cout << "auto_index = " << loct_it->get_auto_index() << std::endl;
-            loct_it++;
-        }
-        std::cout << "\n";
-    }
+    L.set_location_name("/");
+    L.set_root("/");
+    std::string index = serv_it->get_index();
+    if (index.empty())
+        L.set_index("index.html");
+    else
+        L.set_index(index);
+    L.set_methods("GET");
+    L.set_methods("POST");
+    L.set_methods("DELETE");
+    return (L);
+
 }
 
 bool    checkOptionals(std::vector<Server> &vec)
@@ -189,8 +195,9 @@ bool    checkOptionals(std::vector<Server> &vec)
     {
         if (it->get_name().empty() || it->get_port() == -1 || it->get_root().empty())
             return (true);
-        std::vector<Location>::iterator loc_it = it->get_locations_begin();
-        for(; loc_it != it->get_locations_end(); loc_it++)
+        if (it->get_locations_begin() == it->get_locations_end())
+            it->locations.push_back(default_location(it));
+        for(std::vector<Location>::iterator loc_it = it->get_locations_begin(); loc_it != it->get_locations_end(); loc_it++)
         {
             if (loc_it->get_location_name().empty() || loc_it->get_root().empty())
                 return (true);
@@ -205,6 +212,24 @@ bool    checkOptionals(std::vector<Server> &vec)
     return (false);
 }
 
+void  home_checker(std::vector<Server> &vec)
+{
+//  Description: This function is used to check if the root path of the server is a valid path or not, if not it call the error function
+    for(std::vector<Server>::iterator it = vec.begin(); it != vec.end(); it++)
+    {
+        bool Found = false;
+        for (std::vector<Location>::iterator loc_it = it->get_locations_begin(); loc_it != it->get_locations_end(); loc_it++)
+        {
+             if (loc_it->get_location_name() == "/"){
+                    Found = true;
+                 break;
+             }
+        }
+        if (!Found)
+            it->locations.push_back(default_location(it));
+    }
+}
+
 std::vector<Server> ServerFill(std::string conf)
 {
 //  Description: This is the main function, it take the conf file as parameter and return a vector of server filled with all the data
@@ -212,18 +237,20 @@ std::vector<Server> ServerFill(std::string conf)
     std::string         line;
     std::string         var;
     std::string         block;
-    std::ifstream       file(conf);
+    std::ifstream       file(conf.c_str());
     std::vector<Server>::iterator serv_it = vec.begin();
     std::vector<Location>::iterator loc_it;
     int j = 0, k = 0;
 
-    if (!file.is_open())
+    if (!file.is_open()){
         std::cerr << "Error: file dont exist\n";
+        exit(1);
+    }
     while (1)
     {
         if (file.eof())
             break;
-        std::getline(file, line);
+        std::getline(file, line, '\n');
         line = TrimeWhiteSpaces(line);
         if (line.empty())
             continue;
@@ -248,13 +275,15 @@ std::vector<Server> ServerFill(std::string conf)
         if (block == "[server]" && var == "server_name" && serv_it->get_name().empty())
             serv_it->set_name(SecondPart(line));
         else if (block == "[server]" && var == "port" && serv_it->get_port() == -1)
-            serv_it->set_port(port_case(SecondPart(line)));
+            serv_it->set_port(port_case(SecondPart(line), true));
         else if (block == "[server]" && var == "root" && serv_it->get_root().empty())
             serv_it->set_root(SecondPart(line));
+        else if (block == "[server]" && var == "index" && serv_it->get_index().empty())
+            serv_it->set_index(SecondPart(line));
         else if (block == "[server]" && var == "error")
             serv_it->set_errors(errors_case(line));
         else if (block == "[server]" && var == "body_size" && serv_it->get_body_size() == 1048576)
-            serv_it->set_body_size(port_case(SecondPart(line)));
+            serv_it->set_body_size(port_case(SecondPart(line), false));
 
         else if (block == "[location]" && var == "name" && loc_it->get_location_name().empty())
             loc_it->set_location_name(SecondPart(line));
@@ -272,13 +301,15 @@ std::vector<Server> ServerFill(std::string conf)
             loc_it->set_cgi(SecondPart(line));
         else if (block == "[location]" && var == "auto_index" && k++ == 0)
             loc_it->set_auto_index(return_bool(SecondPart(line)));
-        else if (line != "[server]" && line != "[location]")
+        else if (block != "[server]" && block != "[location]" && !block.empty())
             return (throw std::string("Syntax Error"), vec);
-        if (global_var == true)
+        if (global_var)
             return (throw std::string("Syntax Error"), vec);
+        // line.clear();
     }
     if (checkOptionals(vec))
         throw std::string("Syntax Error");
+    home_checker(vec);
     return (vec);
 }
 

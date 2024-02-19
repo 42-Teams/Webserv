@@ -16,7 +16,6 @@ void check_error(int sys, int socketFD)
 {
     if (sys == -1)
     {
-        std::cerr << strerror(errno) << std::endl;
         close(socketFD);
         throw strerror(errno);
     }
@@ -73,7 +72,9 @@ Server& findServer(std::vector<Server> &conFile, Request &request)
 void handleConnection(std::vector<Server> &conFile, clientInfo &clientInfo)
 {
     Request request(clientInfo.request);
-    if (request.get_headers()["Connection"] == "keep-alive")
+    std::string connection_status = request.get_headers()["Connection"];
+    clientInfo.keepAlive = false;
+    if (connection_status == "keep-alive")
         clientInfo.keepAlive = true;
     Response response(request,findServer(conFile, request));
     clientInfo.response = response.get_response();

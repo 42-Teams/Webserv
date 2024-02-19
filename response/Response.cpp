@@ -17,9 +17,9 @@ void init_mime_types(std::map<std::string, std::string>& mime_types){
 	if (file_type.is_open()){
 		std::string line;
 		while (getline(file_type, line)){
-			line.pop_back();
-			if (line.back() == ';')
-				line.pop_back();
+			line.erase(line.size() -  1);
+			if (line[line.size() -  1] == ';')
+				line.erase(line.size() -  1);
 			std::string type = line.substr(0, line.find("|"));
 			std::string ext = line.substr(line.find("|") + 1, line.length()-1);
 			std::stringstream ss(ext);
@@ -31,8 +31,7 @@ void init_mime_types(std::map<std::string, std::string>& mime_types){
 		file_type.close();
 	}
 	else{
-		std::cout << "[WARNING] failed to open mime.types file using default mime types" << std::endl;
-		mime_types["html"] = "text/html";
+		std::cerr << "\033[33m[WARNING] failed to open mime.types file using default mime types\033[0m" << std::endl;		mime_types["html"] = "text/html";
 		mime_types["css"] = "text/css";
 		mime_types["js"] = "text/javascript";
 		mime_types["jpg"] = "image/jpeg";
@@ -49,6 +48,12 @@ void init_mime_types(std::map<std::string, std::string>& mime_types){
 	}
 }
 
+std::string run_cgi(std::string file_name, std::map<std::string,std::string> cgis, Request& request, Location& locations){
+	Cgi cgi;
+	cgi.execute_cgi(file_name, cgis, request, locations.get_upload_path());
+	return cgi.getResponse();
+}
+
 void remove_slash(std::string& str){
 	if (str[0] == '/')
 		str.erase(0,1);
@@ -56,7 +61,7 @@ void remove_slash(std::string& str){
 		if (str[i] == '/' && str[i + 1] == '/')
 			str.erase(i,1);
 	}
-	if (str.back() != '/' && str.rfind(".") != std::string::npos)
+	if (str[str.size() -  1] != '/' && str.rfind(".") != std::string::npos)
 	{
 		str.erase(str.find_last_of("/") + 1, str.length());
 	}
@@ -72,23 +77,16 @@ Location get_Home_location(std::vector<Location> locations){
 
 
 Location find_location(std::vector<Location> locations, std::string uri){
-	remove_slash(uri);
-	if (uri == "")
-		return get_Home_location(locations);
-	std::stringstream ss(uri);
-	std::string tmp;
-	std::string line;
-
-	while (std::getline(ss,tmp,'/'))
+	while (!uri.empty())
 	{
-		line += "/" + tmp;
 		for(size_t i = 0;i < locations.size();i++){
-			if (locations[i].get_location_name() == line ){
+			if (locations[i].get_location_name() == uri ){
 				return locations[i];
 			}
 		}
+		uri = uri.substr(0, uri.find_last_of("/"));
 	}
-	throw std::out_of_range("404");
+	return get_Home_location(locations);
 }
 
 bool need_cgi(std::string file, std::map<std::string, std::string>& cgi){
@@ -175,18 +173,15 @@ void Response::non_upload(Request& request, Server& server, Location &location)
 	std::string path = request.get_path();
 	std::string root = location.get_root();
 	path = path.substr(location.get_location_name().length(), path.length());
-	std::string file_path = root + path;
+	std::string file_path = server.get_root() + root + path;
 	struct stat file_stat;
 	if (stat(file_path.c_str(), &file_stat) < 0)
 		throw std::runtime_error("404");
 	if (S_ISDIR(file_stat.st_mode))
 		post_dir(request, server,location);
 	else if (S_ISREG(file_stat.st_mode)){
-		if (!location.get_cgi().empty() && need_cgi(file_path, location.get_cgi())){
-			Cgi cgi;
-			cgi.execute_cgi(file_path, location.get_cgi(), request);
-			_response = cgi.getResponse();
-		}
+		if (!location.get_cgi().empty() && need_cgi(file_path, location.get_cgi()))
+			_response = run_cgi(file_path, location.get_cgi(), request, location);
 		else{
 			throw std::runtime_error("403");
 		}
@@ -195,13 +190,15 @@ void Response::non_upload(Request& request, Server& server, Location &location)
 		throw std::runtime_error("404");
 }
 
+bool posted_to_file(std::string uri){
+	if (uri.find_last_of("/") == uri.length() - 1)
+		return true;
+	return false;
+}
+
 void Response::Post(Request& request, Server& server, Location &location)
 {
-	if (location.get_upload_enable())
-		upload_file(request, server, location);
-	else{
-		non_upload(request, server, location);
-	}
+	non_upload(request, server, location);
 }
 
 void Response::Get(Request& request, Server& server, Location &location)
@@ -210,7 +207,7 @@ void Response::Get(Request& request, Server& server, Location &location)
 	std::string root = location.get_root();
 	if (location.get_location_name() != "/")
 		path = path.substr(location.get_location_name().length(), path.length());
-	std::string file_path = root + path;
+	std::string file_path = server.get_root() + root + path;
 	struct stat file_stat;
 	if (stat(file_path.c_str(), &file_stat) < 0)
 		throw std::runtime_error("404");
@@ -218,9 +215,7 @@ void Response::Get(Request& request, Server& server, Location &location)
 		get_dir(request, server, location);
 	else if (S_ISREG(file_stat.st_mode)){
 		if (!location.get_cgi().empty() && need_cgi(file_path, location.get_cgi())){
-			Cgi cgi;
-			cgi.execute_cgi(file_path, location.get_cgi(), request);
-			_response = cgi.getResponse();
+			_response = run_cgi(file_path, location.get_cgi(), request, location);
 		}
 		else{
 			std::ifstream file(file_path.c_str(), std::ios::binary);
@@ -247,20 +242,19 @@ void Response::Delete(Request& request, Server& server, Location &location)
 	std::string root = location.get_root();
 	if (location.get_location_name() != "/")
 		path = path.substr(location.get_location_name().length(), path.length());
-	std::string file_path = root + path;
+	std::string file_path = server.get_root() + root + path;
 	struct stat file_stat;
 	if (stat(file_path.c_str(), &file_stat) < 0)
 		throw std::runtime_error("404");
 	if (S_ISDIR(file_stat.st_mode))
-		delete_dir(request, server,location);
+		delete_dir(request, server,location, file_path);
 	else if (S_ISREG(file_stat.st_mode)){
 		if (!location.get_cgi().empty() && need_cgi(file_path, location.get_cgi())){
-			Cgi cgi;
-			cgi.execute_cgi(file_path, location.get_cgi(), request);
-			_response = cgi.getResponse();
+			_response = run_cgi(file_path, location.get_cgi(), request, location);
 		}
 		else{
-			std::remove(file_path.c_str());
+			if (std::remove(file_path.c_str()) != 0)
+				throw std::runtime_error("404");
 			_response = "HTTP/1.1 204 No Content\r\n\r\n";
 		}
 	}
@@ -272,7 +266,7 @@ std::string Response::get_error_page(int code, Server& server)
 {
 	std::map<int, std::string> error_pages = server.get_errors();
 	if (error_pages.find(code) != error_pages.end()){
-		std::string path = server.get_root() +"/" + error_pages[code];
+		std::string path = server.get_root() + "/" + error_pages[code];
 		std::ifstream file(path.c_str());
 		if (file.is_open()){
 			std::string line;
@@ -321,50 +315,46 @@ void Response::init_error_messages(){
 	_error_messages[507] = "Insufficient Storage";
 }
 
+void list_directory(std::string file_path, std::string& _response){
+	DIR* dir = opendir(file_path.c_str());
+	if (dir == NULL){
+		throw std::runtime_error("404");
+	}
+	else{
+		std::string page = "<html><body><ul>";
+		struct dirent* entry;
+		while ((entry = readdir(dir)) != NULL){
+			if (entry->d_name[0] != '.'){
+				std::string file_name = entry->d_name;
+				page += "<li><a href=\"" + file_name + "\">" + file_name + "</a></li>";
+			}
+		}
+		closedir(dir);
+		page += "</ul></body></html>";
+		_response = "HTTP/1.1 200 OK\r\ncontent-type: text/html\r\ncontent-length: " + to_string(page.size()) + "\r\n\r\n" + page;
+	}
+}
+
 void Response::get_dir(Request& request, Server& server, Location& location)
 {
 	(void)server;
 	std::string path = request.get_path();
 	if (path[path.length() - 1] != '/'){
 		path += "/";
-		_response = "HTTP/1.1 301 Moved Permanently\r\nLocation: " + path + "\r\n\r\n";
+		_response = "HTTP/1.1 301 Moved Permanently\r\ncontent-length: 0\r\nLocation: " + path + "\r\n\r\n";
 		return ;
 	}
 	std::string root = location.get_root();
-	path.replace(path.find(location.get_location_name()), location.get_location_name().length(), location.get_root());
+	if (location.get_location_name() != "/")
+		path = path.substr(location.get_location_name().length(), path.length());
+	path = root + path;
 	if (path[path.length() - 1] != '/')
 		path += "/";
-	std::string file_path = path;
+	std::string file_path = server.get_root() + path;
 	std::string index = location.get_index();
-	if (index == ""){
-		if (location.get_auto_index()){
-			DIR* dir = opendir(file_path.c_str());
-			if (dir == NULL){
-				throw std::runtime_error("404");
-			}
-			else{
-				std::string page = "<html><body><ul>";
-				struct dirent* entry;
-				while ((entry = readdir(dir)) != NULL){
-					if (entry->d_name[0] != '.'){
-						std::string file_name = entry->d_name;
-						std::string file_path = root + path + file_name;
-						page += "<li><a href=\"" + file_name + "\">" + file_name + "</a></li>";
-					}
-				}
-				closedir(dir);
-				page += "</ul></body></html>";
-				_response = "HTTP/1.1 200 OK\r\ncontent-type: text/html\r\ncontent-length: " + to_string(page.size()) + "\r\n\r\n" + page;
-			}
-		}
-		else
-			throw std::runtime_error("403");
-	}
-	else{
+	if (!index.empty()){
 		if (!location.get_cgi().empty() && need_cgi(index, location.get_cgi())){
-			Cgi cgi;
-			cgi.execute_cgi(file_path+index, location.get_cgi(), request);
-			_response = cgi.getResponse();
+			_response = run_cgi(file_path + index, location.get_cgi(), request, location);
 		}
 		else{
 			std::string index_path = file_path + index;
@@ -376,9 +366,28 @@ void Response::get_dir(Request& request, Server& server, Location& location)
 					std::string content_type = mime_types[file_extension];
 				_response = "HTTP/1.1 200 OK\r\ncontent-type: "+content_type+"\r\ncontent-length: " + to_string(page.size()) + "\r\n\r\n" + page;
 			}
+			else if (location.get_auto_index()){
+				list_directory(file_path, _response);
+			}
 			else
 				throw std::runtime_error("404");
 		}
+	}
+	else if (index.empty() && !stat((file_path + "index.html").c_str(), NULL)){
+		std::ifstream file((file_path + "index.html").c_str(), std::ios::binary);
+		if (file.is_open()){
+			std::string page((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+			file.close();
+			_response = "HTTP/1.1 200 OK\r\ncontent-type: text/html\r\ncontent-length: " + to_string(page.size()) + "\r\n\r\n" + page;
+		}
+		else
+			throw std::runtime_error("404");
+	}
+	else{
+		if (location.get_auto_index())
+			list_directory(file_path, _response);
+		else
+			throw std::runtime_error("403");
 	}
 }
 
@@ -388,23 +397,21 @@ void Response::post_dir(Request& request, Server& server, Location& location)
 	std::string path = request.get_path();
 	if (path[path.length() - 1] != '/'){
 		path += "/";
-		_response = "HTTP/1.1 301 Moved Permanently\r\nLocation: " + path + "\r\n\r\n";
+		_response = "HTTP/1.1 301 Moved Permanently\r\ncontent-length: 0\r\nLocation: " + path + "\r\n\r\n";
 		return ;
 	}
 	std::string root = location.get_root();
 	path.replace(path.find(location.get_location_name()), location.get_location_name().length(), location.get_root());
 	if (path[path.length() - 1] != '/')
 		path += "/";
-	std::string file_path = path;
+	std::string file_path = server.get_root() + path;
 	std::string index = location.get_index();
 	if (index == ""){
 		throw std::runtime_error("403");
 	}
 	else{
 		if (!location.get_cgi().empty() && need_cgi(index, location.get_cgi())){
-			Cgi cgi;
-			cgi.execute_cgi(file_path+index, location.get_cgi(), request);
-			_response = cgi.getResponse();
+			_response = run_cgi(file_path + index, location.get_cgi(), request, location);
 		}
 		else{
 			throw std::runtime_error("403");
@@ -421,13 +428,13 @@ void delete_directory(std::string path){
 	while ((entry = readdir(dir)) != NULL){
 		if (entry->d_name[0] != '.'){
 			if (entry->d_type == DT_DIR){
-				std::string dir_path = path + "/" + entry->d_name;
+				std::string dir_path = path + "/" + entry->d_name + "/";
 				delete_directory(dir_path);
 			}
 			else{
 				std::string file_name = entry->d_name;
 				std::string path_del = path + file_name;
-				if (remove(path_del.c_str()) != 0){
+				if (std::remove(path_del.c_str()) != 0){
 					throw std::runtime_error("failed to delete file");
 				}
 			}
@@ -438,34 +445,21 @@ void delete_directory(std::string path){
 	return ;
 }
 
-void Response::delete_dir(Request& request, Server& server, Location& location)
+void Response::delete_dir(Request& request, Server& server, Location& location, std::string path)
 {
 	(void)server;
-	std::string path = request.get_path();
+	(void)request;
 	if (path[path.length() - 1] != '/')
 		throw std::runtime_error("409");
 	std::string root = location.get_root();
-	path.replace(path.find(location.get_location_name()), location.get_location_name().length(), location.get_root());
-	if (path[path.length() - 1] != '/')
-		path += "/";
 	std::string file_path = path;
 	std::string index = location.get_index();
-	if (!location.get_cgi().empty() && need_cgi(index, location.get_cgi())){
-		if (index == ""){
-			throw std::runtime_error("403");
-		Cgi cgi;
-		cgi.execute_cgi(file_path+index, location.get_cgi(), request);
-		_response = cgi.getResponse();
+	try{
+		delete_directory(file_path);
+		_response = "HTTP/1.1 204 No Content\r\n\r\n";
 	}
-	}
-	else{
-		try{
-			delete_directory(file_path);
-			_response = "HTTP/1.1 204 No Content\r\n\r\n";
-		}
-		catch(std::exception &e){
-			throw std::runtime_error("404");
-		}
+	catch(std::exception &e){
+		throw std::runtime_error("404");
 	}
 }
 

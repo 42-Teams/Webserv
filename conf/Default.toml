@@ -2,8 +2,12 @@
 server_name = localhost
 port = 80
 root = ./webser_default
+error = 404:/errors/404.html
+error = 564:/errors/404.html
+error = 500:/errors/404.html
+error = 300:/errors/404.html
 
 [location]
 name = /
-root = ./webser_default
+root = /
 index = index.html

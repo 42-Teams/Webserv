@@ -27,6 +27,8 @@ Location::Location()
 Location::~Location()
 {}
 
+// Location Setters
+
 void    Location::set_root(std::string Root)
 {
     this->root = Root;
@@ -34,7 +36,7 @@ void    Location::set_root(std::string Root)
 
 void    Location::set_index(std::string Index)
 {
-//  Description: location::index setter and check if the it ends with a .html if not call the error function
+//  Description: location::index setter and check if the it ends with a .html or .php
     std::string html = ".html";
     std::string php = ".php";
     if ((&Index[Index.length()-5] != html || Index.length() <= 5) &&
@@ -90,9 +92,7 @@ void    Location::set_cgi(std::string CgiPath)
             break;
         part1.clear();
         part2.clear();
-        // std::cout << "              is: " << CgiPath[index] << std::endl;
         index = jump_to_next_char(CgiPath, index, '|');
-        // std::cout << "              is: " << CgiPath[index] << std::endl;
     }
 }
 
@@ -116,6 +116,8 @@ void Location::set_upload_enable(bool upload_enable)
 {
     this->upload_enable = upload_enable;
 }
+
+// Location Getters
 
 const std::string &Location::get_root() const
 {
@@ -169,7 +171,8 @@ bool Location::get_upload_enable() const
 
 bool    Location::isEmpty(int flag)
 {
-//  Description: A function that check if the Location::methods container is empty and the flags are for checking or modifying its state
+//  Description: A function that check if the Location::methods container is empty and the
+//                 flags are for checking or modifying its state
     static bool empty = true;
 
     if (flag == 0)
@@ -196,7 +199,7 @@ void    Location::clear_cgi()
 }
 
 
-//-----------------------------------Server-----------------------------------//
+//---------------------------------------------------------------Server---------------------------------------------------------------//
 
 Server::Server()
 {
@@ -207,6 +210,8 @@ Server::Server()
 Server::~Server()
 {}
 
+// Location Setters
+
 void    Server::set_name(std::string Name)
 {
     this->name = Name;
@@ -216,16 +221,6 @@ void    Server::set_port(int Port)
 {
     this->port = Port;
 }
-
-// void    Server::set_index(std::string Index)
-// {
-//     this->index = Index;
-// }
-
-// void    Server::set_auto_index(bool Auto_Index)
-// {
-//     this->auto_index = Auto_Index;
-// }
 
 void    Server::set_locations(Location L)
 {
@@ -255,6 +250,24 @@ void Server::set_body_size(int bodySize)
 const int &Server::get_body_size() const
 {
     return this->body_size;
+}
+
+// Location Getters
+
+void    Server::set_index(std::string Index)
+{
+//  Description: server::index setter and check if the it ends with a .html or .php
+    std::string html = ".html";
+    std::string php = ".php";
+    if ((&Index[Index.length()-5] != html || Index.length() <= 5) &&
+        (&Index[Index.length()-4] != php || Index.length() <= 4))
+            global_var = true;
+    this->index = Index;
+}
+
+const std::string   &Server::get_index() const
+{
+    return (this->index);
 }
 
 std::vector<Location>::iterator Server::get_locations_begin()

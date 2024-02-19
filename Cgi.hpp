@@ -15,7 +15,7 @@ private:
 	std::string response;
 	std::map<std::string, std::string> paths;
 public:
-	void execute_cgi(std::string file, std::map<std::string,std::string> &cgis , Request &request);
+	void execute_cgi(std::string file, std::map<std::string,std::string> &cgis , Request &request, std::string upload_path);
 	std::string getResponse() const;
 	void setResponse(std::string response);
 	Cgi();

@@ -35,6 +35,7 @@
 #include "Response.hpp"
 
 # define READ_BUFFER 1024
+# define INACTIVITY_TIMEOUT 2
 
 /***********************************************************************/
 /*                           ┌─────────────┐                           */
@@ -43,7 +44,7 @@
 /*             Beautifully managing server operations                  */
 /***********************************************************************/
 
-# define BACKLOG 10
+# define BACKLOG 30
 typedef std::vector<int> int_v;
 
 typedef enum HttpMethod {
@@ -63,9 +64,10 @@ typedef struct clientInfo
     std::string response;           ///< HTTP response to be sent to the client.
     size_t responseBytesSent;       ///< Tracking the number of bytes sent in the response.
     bool keepAlive;                 ///< Flag indicating if the connection should be kept alive.
+    time_t lastActivity;            ///< Time of the last activity on the connection.
 } clientInfo;
 
-typedef std::unordered_map<int, clientInfo> clientInfoList;   ///< Map of client socket file descriptors to client information.
+typedef std::map<int, clientInfo> clientInfoList;   ///< Map of client socket file descriptors to client information.
 typedef clientInfoList::iterator clientInfoIt;                ///< Iterator for the clientInfoList.
 
 /**
@@ -113,7 +115,7 @@ class ServerManager {
         clientInfoList clientInfos;     ///< List of client information.
         int_v serverSockets;            ///< Vector of server socket file descriptors.
         int max_fds;                    ///< Maximum file descriptor value.
-        std::vector<Server> &conFile;
+        std::vector<Server> &conFile;   ///< Configuration file.
     public:
         /**
          * @brief Default constructor for ServerManager.
@@ -231,6 +233,11 @@ class ServerManager {
          * @return True if the length is valid, false otherwise.
          */
         bool isRequestBodyLengthValid(std::string const &requestHeader, size_t contentLength) const;
+
+        /**
+         * @brief Filter out inactive connections.
+        */
+        void filterInactiveConnections();
 };
 
 #endif

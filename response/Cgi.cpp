@@ -20,7 +20,18 @@ Cgi::~Cgi()
 {
 }
 
-std::map<std::string, std::string> setup_env(std::string file, Request& request)
+std::string get_upload_path(std::string file, std::string upload_path)
+{
+	struct  stat st;
+	if (upload_path.empty())
+		return (file.substr(0, file.find_last_of('/')));
+	else if (stat(upload_path.c_str(), &st) == -1)
+		return (file.substr(0, file.find_last_of('/')));
+	else
+		return (upload_path);
+}
+
+std::map<std::string, std::string> setup_env(std::string file, Request& request, std::string upload_path)
 {
 	std::map<std::string, std::string> env;
 	env["REDIRECT_STATUS"] = "200";
@@ -32,6 +43,7 @@ std::map<std::string, std::string> setup_env(std::string file, Request& request)
 	env["SCRIPT_NAME"] = file.substr(file.find_last_of('/') + 1);
 	env["SERVER_SOFTWARE"] = "webserv";
 	env["GATEWAY_INTERFACE"] = "CGI/1.1";
+	env["UPLOAD_PATH"] = get_upload_path(file, upload_path);
 	return (env);
 }
 
@@ -64,7 +76,7 @@ void setup_response(std::string response, std::string& return_response){
 	}
 }
 
-void Cgi::execute_cgi(std::string file, std::map<std::string,std::string> &cgis , Request &request)
+void Cgi::execute_cgi(std::string file, std::map<std::string,std::string> &cgis , Request &request, std::string upload_path)
 {
 	std::string ext = file.substr(file.find_last_of('.') + 1);
 	int status;
@@ -75,15 +87,20 @@ void Cgi::execute_cgi(std::string file, std::map<std::string,std::string> &cgis 
 	if (pipe(fd) == -1)
 		throw std::runtime_error("500");
 	pid_t pid = fork();
-	if (pid == -1)
-		throw std::runtime_error("500");
 	char **argc = new char*[3];
+	char **envp = get_env(setup_env(file, request, upload_path));
+	if (pid == -1){
+		delete[] argc;
+		for (int i = 0; envp[i]; i++)
+			delete[] envp[i];
+		delete[] envp;
+		throw std::runtime_error("500");
+	}
 	if (pid == 0)
 	{
 		argc[0] = (char *)path.c_str();
 		argc[1] = (char *)file.c_str();
 		argc[2] = NULL;
-		char **envp = get_env(setup_env(file, request));
 		if (dup2(fd[1], STDOUT_FILENO) == -1)
 			exit(127);
 		close(fd[1]);
@@ -91,7 +108,6 @@ void Cgi::execute_cgi(std::string file, std::map<std::string,std::string> &cgis 
 			exit(127);
 		close(fd[0]);
 		execve(path.c_str(), argc, envp);
-		std::cerr << "execve failed" << std::endl;
 		exit(127);
 	}
 	else
@@ -99,15 +115,20 @@ void Cgi::execute_cgi(std::string file, std::map<std::string,std::string> &cgis 
 		write(fd[1], request.get_raw_body().c_str(), request.get_raw_body().size());
 		close(fd[1]);
 		waitpid(pid, &status, 0);
+		delete[] argc;
+		for (int i = 0; envp[i]; i++)
+			delete[] envp[i];
+		delete[] envp;
 		if (WIFEXITED(status))
 		{
 			if (WEXITSTATUS(status) == 127){
-				delete[] argc;
 				close(fd[0]);
 				throw std::runtime_error("500");
+			}else if (WEXITSTATUS(status) != 0){
+				close(fd[0]);
+				throw std::runtime_error("404");
 			}
 		}
-		delete[] argc;
 		char buf[1024];
 		std::string response;
 		int len = 0;

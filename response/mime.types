@@ -84,3 +84,5 @@ video/x-mng|mng;
 video/x-ms-asf|asx asf;
 video/x-ms-wmv|wmv;
 video/x-msvideo|avi;
+application/x-httpd-php|php;
+application/x-python|py;

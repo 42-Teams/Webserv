@@ -6,7 +6,9 @@
 #include <map>
 #include <vector>
 #include <fstream>
-
+#include <string.h>
+#include <stdio.h>
+#include <cstring>
 class   Location
 {
     private :
@@ -58,6 +60,7 @@ class Server
         std::string                 name;
         int                         port;
         std::string                 root;
+        std::string                 index;
         std::map<int, std::string>  errors;     // not necessery
         int                         body_size;  // not necessery
 
@@ -73,7 +76,10 @@ class Server
         void    set_errors(std::pair<int, std::string> Errors);     //
         void    set_locations(Location Locations);                  //
         void    set_body_size(int bodySize);                        //
+        void    set_index(std::string Index);                       //
 
+
+        const std::string                             &get_index() const;           //
         const int                                     &get_body_size() const;       //
         const std::string                             &get_name() const;            //
         const int                                     &get_port() const;            //

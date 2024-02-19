@@ -35,7 +35,7 @@ private:
 	void get_dir(Request& request, Server& server, Location& location);
 	void upload_file(Request& request, Server& server, Location& location);
 	void non_upload(Request& request, Server& server, Location& location);
-	void delete_dir(Request& request, Server& server, Location& location);
+	void delete_dir(Request& request, Server& server, Location& location, std::string path);
 	void post_dir(Request& request, Server& server, Location& location);
 	std::map<std::string, std::string> mime_types;
 public:

@@ -39,10 +39,12 @@ std::map<std::string, std::string> setup_env(std::string file, Request& request,
 	env["QUERY_STRING"] = request.get_query();
 	env["CONTENT_LENGTH"] = to_string(request.get_raw_body().size());
 	env["CONTENT_TYPE"] = request.get_headers()["Content-Type"];
-	env["SCRIPT_FILENAME"] = file;
-	env["SCRIPT_NAME"] = file.substr(file.find_last_of('/') + 1);
+	env["PATH_INFO"] = file;
+	env["PATH_TRANSLATED"] = file;
 	env["SERVER_SOFTWARE"] = "webserv";
 	env["GATEWAY_INTERFACE"] = "CGI/1.1";
+	env["SERVER_PROTOCOL"] = request.get_version();
+	env["REMOTE_HOST"] = request.get_headers()["Host"];
 	env["UPLOAD_PATH"] = get_upload_path(file, upload_path);
 	return (env);
 }
@@ -86,9 +88,9 @@ void Cgi::execute_cgi(std::string file, std::map<std::string,std::string> &cgis 
 	int fd[2];
 	if (pipe(fd) == -1)
 		throw std::runtime_error("500");
-	pid_t pid = fork();
 	char **argc = new char*[3];
 	char **envp = get_env(setup_env(file, request, upload_path));
+	pid_t pid = fork();
 	if (pid == -1){
 		delete[] argc;
 		for (int i = 0; envp[i]; i++)
@@ -98,8 +100,9 @@ void Cgi::execute_cgi(std::string file, std::map<std::string,std::string> &cgis 
 	}
 	if (pid == 0)
 	{
+		chdir(file.substr(0, file.find_last_of('/')).c_str());
 		argc[0] = (char *)path.c_str();
-		argc[1] = (char *)file.c_str();
+		argc[1] = (char *)file.substr(file.find_last_of('/') + 1).c_str();
 		argc[2] = NULL;
 		if (dup2(fd[1], STDOUT_FILENO) == -1)
 			exit(127);

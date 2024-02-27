@@ -103,7 +103,7 @@ Response::Response(Request& request, Server& server)
 	init_error_messages();
 	try {
 		if (request.get_status() != "OK")
-			throw (request.get_status().c_str());
+			throw std::runtime_error(request.get_status().c_str());
 		if ((int)request.get_raw_body().size() > server.get_body_size())
 			throw std::runtime_error("413");
 		Location location;
@@ -183,7 +183,7 @@ void Response::non_upload(Request& request, Server& server, Location &location)
 		if (!location.get_cgi().empty() && need_cgi(file_path, location.get_cgi()))
 			_response = run_cgi(file_path, location.get_cgi(), request, location);
 		else{
-			throw std::runtime_error("403");
+			throw std::runtime_error("405");
 		}
 	}
 	else
@@ -335,6 +335,40 @@ void list_directory(std::string file_path, std::string& _response){
 	}
 }
 
+void get_directory_cases(std::string file_path, std::string index, std::string& _response, int case_n, bool auto_index){
+	switch (case_n)
+	{
+		case 1:
+			std::string index_path = file_path + index;
+			std::ifstream file(index_path.c_str(), std::ios::binary);
+			if (file.is_open()){
+				std::string page((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+				file.close();
+				std::string file_extension = index_path.substr(index_path.find_last_of(".") + 1);
+					std::string content_type = mime_types[file_extension];
+				_response = "HTTP/1.1 200 OK\r\ncontent-type: "+content_type+"\r\ncontent-length: " + to_string(page.size()) + "\r\n\r\n" + page;
+				break;
+			}
+		case 2:
+			std::ifstream file((file_path + "index.html").c_str(), std::ios::binary);
+			if (file.is_open()){
+				std::string page((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+				file.close();
+				_response = "HTTP/1.1 200 OK\r\ncontent-type: text/html\r\ncontent-length: " + to_string(page.size()) + "\r\n\r\n" + page;
+				break;
+			}
+			if (!auto_index)
+				throw std::runtime_error("403");
+		case 3:
+			list_directory(file_path, _response);
+			break;
+	
+	default:
+		throw std::runtime_error("403");
+		break;
+	}
+}
+
 void Response::get_dir(Request& request, Server& server, Location& location)
 {
 	(void)server;
@@ -353,36 +387,13 @@ void Response::get_dir(Request& request, Server& server, Location& location)
 	std::string file_path = server.get_root() + path;
 	std::string index = location.get_index();
 	if (!index.empty()){
-		if (!location.get_cgi().empty() && need_cgi(index, location.get_cgi())){
+		if (!location.get_cgi().empty() && need_cgi(index, location.get_cgi()))
 			_response = run_cgi(file_path + index, location.get_cgi(), request, location);
-		}
-		else{
-			std::string index_path = file_path + index;
-			std::ifstream file(index_path.c_str(), std::ios::binary);
-			if (file.is_open()){
-				std::string page((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-				file.close();
-				std::string file_extension = index_path.substr(index_path.find_last_of(".") + 1);
-					std::string content_type = mime_types[file_extension];
-				_response = "HTTP/1.1 200 OK\r\ncontent-type: "+content_type+"\r\ncontent-length: " + to_string(page.size()) + "\r\n\r\n" + page;
-			}
-			else if (location.get_auto_index()){
-				list_directory(file_path, _response);
-			}
-			else
-				throw std::runtime_error("404");
-		}
-	}
-	else if (index.empty() && !stat((file_path + "index.html").c_str(), NULL)){
-		std::ifstream file((file_path + "index.html").c_str(), std::ios::binary);
-		if (file.is_open()){
-			std::string page((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-			file.close();
-			_response = "HTTP/1.1 200 OK\r\ncontent-type: text/html\r\ncontent-length: " + to_string(page.size()) + "\r\n\r\n" + page;
-		}
 		else
-			throw std::runtime_error("404");
+			get_directory_cases(file_path, index, _response, 1, location.get_auto_index());
 	}
+	else if (index.empty() && !stat((file_path + "index.html").c_str(), NULL))
+		get_directory_cases(file_path, index, _response, 2, location.get_auto_index());
 	else{
 		if (location.get_auto_index())
 			list_directory(file_path, _response);

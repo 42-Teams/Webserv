@@ -70,6 +70,11 @@ void from_chuned_to_normal(std::string& body){
     body = tmp_body;
 }
 
+void remove_duplicate_slash(std::string &str){
+    size_t pos = 0;
+    while ((pos = str.find("//",pos)) != std::string::npos)
+        str.erase(pos,1);
+}
 
 void Request::creat_headers(std::string &str){
     std::stringstream ss(str);
@@ -97,12 +102,6 @@ void Request::creat_headers(std::string &str){
             value.erase(0,1);
         if (value[value.length() - 1] == '\r')
             value.erase(value.length() - 1);
-        // if (key == "Content-Type"){
-        //     if (value.find("boundary") != std::string::npos){
-        //         this->b_boundary = value.substr(value.find("boundary"));
-        //         value.erase(value.find(";"), value.length());
-        //     }
-        // }
         this->headers[key] = value;
     }
 }
@@ -113,9 +112,9 @@ void Request::parse_request(std::string request){
         return;
     std::string tmp = request.substr(0,pos);
     creat_headers(tmp);
+    check_request();
     if (this->requesr_status != "OK")
         return;
-    check_request();
     request.erase(0,pos + 4);
     if (request.length() > 0)
     {

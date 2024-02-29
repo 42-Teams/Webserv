@@ -14,6 +14,7 @@ class   Location
     private :
         std::string    name;
         std::string    root;
+        std::string    redirection;                       // not necessery
         std::string    index;                             // not necessery
         std::string    upload_path;                       // not necessery
         bool           upload_enable;                     // not necessery
@@ -33,6 +34,7 @@ class   Location
         void    set_methods(std::string Methods);                   //      Setters
         void    set_cgi(std::string CgiPath);                       //
         void    set_auto_index(bool AutoIndex);                     //
+        void    set_redirection(std::string Redirection);           //
 
 
 
@@ -47,6 +49,7 @@ class   Location
         std::map<std::string, std::string>::iterator    get_cgi_end();                      //
         std::map<std::string, std::string>              &get_cgi();                         //
         const bool                                      &get_auto_index() const;            //
+        const std::string                               &get_redirection() const;           //
 
         void    clear_cgi();
         void    clear_methods();
@@ -57,10 +60,11 @@ class   Location
 class Server
 {
     private :
-        std::string                 name;
-        int                         port;
+        std::string                 name;//
+        std::vector<int>            port;//
         std::string                 root;
         std::string                 index;
+        std::string                 host;//
         std::map<int, std::string>  errors;     // not necessery
         int                         body_size;  // not necessery
 
@@ -77,19 +81,23 @@ class Server
         void    set_locations(Location Locations);                  //
         void    set_body_size(int bodySize);                        //
         void    set_index(std::string Index);                       //
+        void    set_host(std::string Host);                         //
 
 
         const std::string                             &get_index() const;           //
         const int                                     &get_body_size() const;       //
         const std::string                             &get_name() const;            //
-        const int                                     &get_port() const;            //
+        std::vector<int>::iterator                    get_port_begin();             //
+        std::vector<int>::iterator                    get_port_end();               //
         const std::string                             &get_root() const;            //
+        std::string                                   &get_host();                  //
         std::vector<Location>                         &get_locations();             //      Getters
         std::map<int, std::string>::iterator          get_errors_begin();           //
         std::map<int, std::string>::iterator          get_errors_end();             //
         std::vector<Location>::iterator               get_locations_begin();        //
         std::vector<Location>::iterator               get_locations_end();          //
         std::map<int, std::string>                    &get_errors();                //
+
 
         // void    print_all(std::vector<Server> vec); // Description: A function that print all the Attributes of the server class and of the location member class
 };

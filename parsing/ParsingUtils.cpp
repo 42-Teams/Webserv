@@ -101,7 +101,6 @@ void    Location::set_auto_index(bool AutoIndex)
     this->auto_index = AutoIndex;
 }
 
-
 void Location::set_location_name(const std::string& name)
 {
     this->name = name;
@@ -115,6 +114,11 @@ void Location::set_upload_path(const std::string& upload_path)
 void Location::set_upload_enable(bool upload_enable)
 {
     this->upload_enable = upload_enable;
+}
+
+void Location::set_redirection(std::string Redirection)
+{
+    this->redirection = Redirection;
 }
 
 // Location Getters
@@ -169,6 +173,126 @@ bool Location::get_upload_enable() const
     return upload_enable;
 }
 
+const std::string &Location::get_redirection() const
+{
+    return redirection;
+}
+
+
+
+//---------------------------------------------------------------Server---------------------------------------------------------------//
+
+Server::Server()
+{
+    this->body_size = 1048576;   // 1048576 = 1 MB
+}
+
+Server::~Server()
+{}
+
+// Location Setters
+
+void    Server::set_name(std::string Name)
+{
+    this->name = Name;
+}
+
+void    Server::set_port(int Port)
+{
+    this->port.push_back(Port);
+}
+
+void    Server::set_locations(Location L)
+{
+    this->locations.push_back(L);
+}
+
+void    Server::set_errors(std::pair<int, std::string> pair)
+{
+    this->errors.insert(pair);
+}
+
+
+void Server::set_body_size(int bodySize)
+{
+    this->body_size = bodySize;
+}
+
+
+void Server::set_root(const std::string& root)
+{
+    this->root = root;
+}
+
+void    Server::set_index(std::string Index)
+{
+//  Description: server::index setter and check if the it ends with a .html or .php
+    std::string html = ".html";
+    std::string php = ".php";
+    if ((&Index[Index.length()-5] != html || Index.length() <= 5) &&
+        (&Index[Index.length()-4] != php || Index.length() <= 4))
+            global_var = true;
+    this->index = Index;
+}
+
+// Location Getters
+
+const int &Server::get_body_size() const
+{
+    return this->body_size;
+}
+
+const std::string &Server::get_name() const
+{
+    return name;
+}
+
+std::vector<int>::iterator Server::get_port_begin()
+{
+    return port.begin();
+}
+
+std::vector<int>::iterator Server::get_port_end()
+{
+    return port.end();
+}
+
+const std::string   &Server::get_index() const
+{
+    return (this->index);
+}
+
+std::vector<Location>::iterator Server::get_locations_begin()
+{
+    return (locations.begin());
+}
+std::vector<Location>::iterator Server::get_locations_begin()
+{
+    return (locations.begin());
+}
+
+std::vector<Location>::iterator Server::get_locations_end()
+{
+    return (locations.end());
+}
+
+std::map<int, std::string>::iterator    Server::get_errors_end()
+{
+    return (this->errors.end());
+}
+
+std::map<int, std::string>::iterator    Server::get_errors_begin()
+{
+    return (this->errors.begin());
+}
+
+const   std::string &Server::get_root() const
+{
+    return root;
+}
+
+// utils functions
+
 bool    Location::isEmpty(int flag)
 {
 //  Description: A function that check if the Location::methods container is empty and the
@@ -199,103 +323,3 @@ void    Location::clear_cgi()
 }
 
 
-//---------------------------------------------------------------Server---------------------------------------------------------------//
-
-Server::Server()
-{
-    this->port = -1;             // -1 is a default value to know in case no port is set in the config file
-    this->body_size = 1048576;   // 1048576 = 1 MB
-}
-
-Server::~Server()
-{}
-
-// Location Setters
-
-void    Server::set_name(std::string Name)
-{
-    this->name = Name;
-}
-
-void    Server::set_port(int Port)
-{
-    this->port = Port;
-}
-
-void    Server::set_locations(Location L)
-{
-    this->locations.push_back(L);
-}
-
-void    Server::set_errors(std::pair<int, std::string> pair)
-{
-    this->errors.insert(pair);
-}
-
-const std::string &Server::get_name() const
-{
-    return name;
-}
-
-const int &Server::get_port() const
-{
-    return port;
-}
-
-void Server::set_body_size(int bodySize)
-{
-    this->body_size = bodySize;
-}
-
-const int &Server::get_body_size() const
-{
-    return this->body_size;
-}
-
-// Location Getters
-
-void    Server::set_index(std::string Index)
-{
-//  Description: server::index setter and check if the it ends with a .html or .php
-    std::string html = ".html";
-    std::string php = ".php";
-    if ((&Index[Index.length()-5] != html || Index.length() <= 5) &&
-        (&Index[Index.length()-4] != php || Index.length() <= 4))
-            global_var = true;
-    this->index = Index;
-}
-
-const std::string   &Server::get_index() const
-{
-    return (this->index);
-}
-
-std::vector<Location>::iterator Server::get_locations_begin()
-{
-    return (locations.begin());
-}
-
-std::vector<Location>::iterator Server::get_locations_end()
-{
-    return (locations.end());
-}
-
-std::map<int, std::string>::iterator    Server::get_errors_end()
-{
-    return (this->errors.end());
-}
-
-std::map<int, std::string>::iterator    Server::get_errors_begin()
-{
-    return (this->errors.begin());
-}
-
-void Server::set_root(const std::string& root)
-{
-    this->root = root;
-}
-
-const   std::string &Server::get_root() const
-{
-    return root;
-}

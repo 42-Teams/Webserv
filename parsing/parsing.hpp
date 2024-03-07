@@ -68,11 +68,11 @@ class   Location
 class Server
 {
     private :
-        std::string                 name;//
-        std::vector<int>            port;//
+        std::string                 name;
+        std::vector<int>            port;
         std::string                 root;
         std::string                 index;
-        std::string                 host;//
+        std::string                 host;
         bool                        auto_index;
         std::map<int, std::string>  errors;     // not necessery
         int                         body_size;  // not necessery

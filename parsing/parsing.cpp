@@ -206,7 +206,8 @@ bool    checkOptionals(std::vector<Server> &vec)
 //               and also add the three methods GET, POST and DELETE if no methods are specified.
     for(std::vector<Server>::iterator it = vec.begin(); it != vec.end(); it++)
     {
-        if (it->get_name().empty() || it->get_port_begin() == it->get_port_end() || it->get_root().empty())
+        if (it->get_name().empty() || it->get_port_begin() == it->get_port_end() || 
+            it->get_root().empty() || it->get_index().empty() || it->get_host().empty()) 
             return (true);
         if (it->get_locations_begin() == it->get_locations_end())
             it->locations.push_back(default_location(it));

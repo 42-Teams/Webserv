@@ -26,17 +26,6 @@ int count_char_appearing(std::string str, char c)
     return (count);
 }
 
-bool    port_exist(std::vector<Server>::iterator serv_it, int port)
-{
-//  Description: A function that check if the port exist in the server::port container
-    for (std::vector<int>::iterator it = serv_it->get_port_begin(); it != serv_it->get_port_end(); it++)
-    {
-        if (*it == port)
-            return true;
-    }
-    return false;
-}
-
 std::string TrimeWhiteSpaces(std::string line)
 {
 //  Description: Clear from its name, take a string as parameter and return it without any sequenced spaces
@@ -66,8 +55,8 @@ std::string FirstPart(std::string line)
     std::string str;
 
     std::string array[] = {"server_name", "port", "index", "auto_index", "error", "root", "method",
-    "cgi", "[server]", "[location]", "name", "upload_path", "upload_enable", "body_size", ""};
-    std::vector<std::string> vec(array, array + 15);
+    "cgi", "[server]", "[location]", "name", "upload_path", "upload_enable", "body_size", "host", "return"};
+    std::vector<std::string> vec(array, array + 16);
 
     for (int x = 0; line[x] && line[x] != ' ' && line[x] != '='; x++)
         str += line[x];
@@ -147,7 +136,7 @@ bool CaseEqual(const std::string& str1, const std::string& str2)
     return (true);
 }
 
-bool    return_bool(std::string value)
+bool    BoolCase(std::string value)
 {
 //  Description: I use this function while reading the auto_index part of conf file, it take's a string and check if it's true or false
 //               and return it as a boolean, otherwisw it call the error function
@@ -280,7 +269,7 @@ std::vector<Server> ServerFill(std::string conf)
     std::ifstream       file(conf.c_str());
     std::vector<Server>::iterator serv_it = vec.begin();
     std::vector<Location>::iterator loc_it;
-    int j = 0, k = 0;
+    int j = 0, k = 0, l = 0;
 
     if (!file.is_open())
     {
@@ -306,21 +295,23 @@ std::vector<Server> ServerFill(std::string conf)
         {
             if (vec.size() == 0)
                 return (throw std::string("Error"), vec);
-            Location L;
+            Location L(serv_it);
             serv_it->set_locations(L);
             loc_it = serv_it->locations.end() - 1;
             block = line;
-            k = 0; j = 0;
+            k = 0; j = 0; l = 0;
         }
         var = FirstPart(line);
         if (block == "[server]" && var == "server_name" && serv_it->get_name().empty())
             serv_it->set_name(SecondPart(line));
-        else if (block == "[server]" && var == "port" && !port_exist(serv_it, port_case(SecondPart(line), true)))
+        else if (block == "[server]" && var == "port")
             serv_it->set_port(port_case(SecondPart(line), true));
         else if (block == "[server]" && var == "root" && serv_it->get_root().empty())
             serv_it->set_root(SecondPart(line));
         else if (block == "[server]" && var == "index" && serv_it->get_index().empty())
             serv_it->set_index(SecondPart(line));
+        else if (block == "[server]" && var == "auto_index" && l++ == 0)
+            serv_it->set_auto_index(BoolCase(SecondPart(line)));
         else if (block == "[server]" && var == "error")
             serv_it->set_errors(errors_case(line));
         else if (block == "[server]" && var == "body_size" && serv_it->get_body_size() == 1048576)
@@ -330,22 +321,24 @@ std::vector<Server> ServerFill(std::string conf)
 
         else if (block == "[location]" && var == "name" && loc_it->get_location_name().empty())
             loc_it->set_location_name(SecondPart(line));
-        else if (block == "[location]" && var == "root" && loc_it->get_root().empty())
+        else if (block == "[location]" && var == "root")
             loc_it->set_root(SecondPart(line));
-        else if (block == "[location]" && var == "index" && loc_it->get_index().empty())
+        else if (block == "[location]" && var == "index")
             loc_it->set_index(SecondPart(line));
         else if (block == "[location]" && var == "upload_path" && loc_it->get_upload_path().empty())
             loc_it->set_upload_path(SecondPart(line));
         else if (block == "[location]" && var == "upload_enable" && j++ == 0)
-            loc_it->set_upload_enable(return_bool(SecondPart(line)));
+            loc_it->set_upload_enable(BoolCase(SecondPart(line)));
         else if (block == "[location]" && var == "method")
             loc_it->set_methods(SecondPart(line));
         else if (block == "[location]" && var == "cgi" && loc_it->get_cgi_begin() == loc_it->get_cgi_end())
             loc_it->set_cgi(SecondPart(line));
         else if (block == "[location]" && var == "auto_index" && k++ == 0)
-            loc_it->set_auto_index(return_bool(SecondPart(line)));
+            loc_it->set_auto_index(BoolCase(SecondPart(line)));
         else if (block == "[location]" && var == "return" && loc_it->get_redirection().empty())
             loc_it->set_redirection(SecondPart(line));
+        else if (block == "[location]" && var == "body_size")
+            loc_it->set_body_size(port_case(SecondPart(line), false));
 
         else if (block != "[server]" && block != "[location]" && !block.empty())
             return (throw std::string("Syntax Error"), vec);

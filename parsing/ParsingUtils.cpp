@@ -19,8 +19,13 @@ bool        CaseEqual(const std::string& str1, const std::string& str2);
 //-----------------------------------Location-----------------------------------//
 
 Location::Location()
+{}
+
+Location::Location(std::vector<Server>::iterator S)
 {
-    auto_index = false;
+    body_size = S->get_body_size();
+    index = S->get_index();
+    auto_index = S->get_auto_index();
     upload_enable = false;
 }
 
@@ -121,6 +126,11 @@ void Location::set_redirection(std::string Redirection)
     this->redirection = Redirection;
 }
 
+void Location::set_body_size(int bodySize)
+{
+    this->body_size = bodySize;
+}
+
 // Location Getters
 
 const std::string &Location::get_root() const
@@ -178,7 +188,10 @@ const std::string &Location::get_redirection() const
     return redirection;
 }
 
-
+const int &Location::get_body_size() const
+{
+    return body_size;
+}
 
 //---------------------------------------------------------------Server---------------------------------------------------------------//
 
@@ -199,7 +212,17 @@ void    Server::set_name(std::string Name)
 
 void    Server::set_port(int Port)
 {
+    for (std::vector<int>::iterator it = this->port.begin(); it != this->port.end(); it++)
+    {
+        if (*it == Port)
+            throw std::string("Syntax Error");
+    }
     this->port.push_back(Port);
+}
+
+std::vector<int>    Server::get_port() const
+{
+    return (this->port);
 }
 
 void    Server::set_locations(Location L)
@@ -218,7 +241,6 @@ void Server::set_body_size(int bodySize)
     this->body_size = bodySize;
 }
 
-
 void Server::set_root(const std::string& root)
 {
     this->root = root;
@@ -233,6 +255,11 @@ void    Server::set_index(std::string Index)
         (&Index[Index.length()-4] != php || Index.length() <= 4))
             global_var = true;
     this->index = Index;
+}
+
+void    Server::set_auto_index(bool AutoIndex)
+{
+    this->auto_index = AutoIndex;
 }
 
 // Location Getters
@@ -266,10 +293,6 @@ std::vector<Location>::iterator Server::get_locations_begin()
 {
     return (locations.begin());
 }
-std::vector<Location>::iterator Server::get_locations_begin()
-{
-    return (locations.begin());
-}
 
 std::vector<Location>::iterator Server::get_locations_end()
 {
@@ -289,6 +312,11 @@ std::map<int, std::string>::iterator    Server::get_errors_begin()
 const   std::string &Server::get_root() const
 {
     return root;
+}
+
+bool    Server::get_auto_index() const
+{
+    return auto_index;
 }
 
 // utils functions

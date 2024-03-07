@@ -22,6 +22,98 @@ Request::~Request()
 {
 }
 
+std::vector<std::string> split(std::string str, std::string delim){
+    std::vector<std::string> vec;
+    size_t pos = 0;
+    std::string token;
+    while ((pos = str.find(delim)) != std::string::npos) {
+        token = str.substr(0, pos);
+        vec.push_back(token);
+        str.erase(0, pos + delim.length());
+    }
+    vec.push_back(str);
+    return vec;
+}
+
+void get_name(std::string &str, Form &form){
+    std::string tmp;
+    std::stringstream ss(str);
+    std::getline(ss,tmp,'\n');
+    if (tmp.back() == '\r')
+        tmp.erase(tmp.length() - 1);
+    std::vector<std::string> vec = split(tmp, "; ");
+    if (vec.size() > 2){
+        form.is_file = true;
+        std::string filename = split(vec[2], "=\"")[1];
+        filename.erase(filename.length() - 1);
+        form.filename = filename;
+        std::string name = split(vec[1], "=\"")[1];
+        name.erase(name.length() - 1);
+        form.name = name;
+    }
+    else{
+        std::string name = split(vec[1], "=\"")[1];
+        name.erase(name.length() - 1);
+        form.name = name;
+    }
+    vec.clear();;
+}
+
+std::string edit_last_line(std::string str){
+    size_t pos1 = str.find_first_of("\r\n");
+    if (pos1 == std::string::npos)
+        return str;
+    str.erase(pos1, 2);
+    size_t pos2 = str.find_last_of("\r\n");
+    if (pos2 == std::string::npos)
+        return str;
+    str.erase(pos2, 2);
+    return str;
+}
+
+void create_input(std::string &str, std::vector<Form>& form){
+    Form tmp;
+    tmp.is_file = false;
+    std::string to_remove;
+    get_name(str, tmp);
+    std::string tmp2;
+    std::stringstream ss(str);
+    std::getline(ss,tmp2,'\n');
+    to_remove += tmp2 + '\n';
+    if (tmp.is_file){
+        std::getline(ss,tmp2,'\n');
+        to_remove += tmp2 + '\n';
+        if (tmp2.back() == '\r')
+            tmp2.erase(tmp2.length() - 1);
+        tmp2.erase(0,tmp2.find(":") + 2);
+        tmp.content_type = tmp2;
+    }
+    std::getline(ss,tmp2,'\n');
+    to_remove += tmp2 + '\n';
+    str.erase(0, to_remove.length());
+    if (str.back() == '\n')
+        str.erase(str.length() - 1);
+    tmp.value = str;
+    form.push_back(tmp);
+}
+
+void Request::parse_form(std::string form, std::string boundary){
+    std::vector<std::string> vec = split(form, "--"+boundary);
+
+    for (size_t i = 0; i <  vec.size(); i++)
+    {
+        vec[i].erase(0, 2);
+        if (vec[i]=="\r\n" || vec[i]=="\r" || vec[i]=="\n" || vec[i]=="" || vec[i]=="--" || vec[i]=="--\r\n" || vec[i]=="--\r" || vec[i]=="--\n")
+        {
+            vec.erase(vec.begin() + i);
+            i--;
+        }
+    }
+    for (size_t i = 0; i <  vec.size(); i++)
+        create_input(vec[i], this->form);
+}
+
+
 bool Request::check_uri(){
     std::string allowed_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~:/?#[]@!$&'()*+,;=%";
     for (size_t i = 0; i < this->path.length(); i++)
@@ -41,12 +133,17 @@ void Request::check_request(){
         this->requesr_status = "505";
     else if (this->headers.find("Transfer-Encoding") != this->headers.end() && this->headers["Transfer-Encoding"] != "chunked")
         this->requesr_status = "501";
-    else if (this->headers["Method"] == "POST" && this->headers.find("Transfer-Encoding") == this->headers.end() && this->headers.find("Content-Length") == this->headers.end())
+    else if (this->method == "POST" && this->headers.find("Transfer-Encoding") == this->headers.end() && this->headers.find("Content-Length") == this->headers.end())
         this->requesr_status = "400";
     else if (!check_uri())
         this->requesr_status = "400";
     else if (this->path.length() > 2048)
         this->requesr_status = "414";
+    for (std::map<std::string, std::string>::iterator it = this->headers.begin(); it != this->headers.end(); it++)
+    {
+        if (it->second == "")
+            this->requesr_status = "400";
+    }
 }
 
 void from_chuned_to_normal(std::string& body){
@@ -106,6 +203,15 @@ void Request::creat_headers(std::string &str){
     }
 }
 
+void fix_space_in_path(std::string &path){
+    size_t pos = 0;
+    while ((pos = path.find("%20",pos)) != std::string::npos)
+    {
+        path.replace(pos,3," ");
+        pos++;
+    }
+}
+
 void Request::parse_request(std::string request){
     size_t pos = request.find("\r\n\r\n");
     if (pos == std::string::npos)
@@ -115,12 +221,21 @@ void Request::parse_request(std::string request){
     check_request();
     if (this->requesr_status != "OK")
         return;
+    fix_space_in_path(this->path);
     request.erase(0,pos + 4);
     if (request.length() > 0)
     {
         this->body = true;
         if (this->headers.find("Transfer-Encoding") != this->headers.end() && this->headers["Transfer-Encoding"] == "chunked")
             from_chuned_to_normal(request);
+        std::string content_type;
+        if (this->headers.find("Content-Type") != this->headers.end())
+            content_type = this->headers["Content-Type"];
+        if (!content_type.empty() && "multipart/form-data" == content_type.substr(0,19))
+        {
+            std::string boundary = content_type.substr(content_type.find("boundary=") + 9);
+            parse_form(request, boundary);
+        }
         this->raw_body = request;
     }
     else
@@ -165,10 +280,6 @@ std::map<std::string, std::string> Request::get_headers() const{
     return this->headers;
 }
 
-std::map<std::string, std::string> Request::get_uncode_form() const{
-    return this->uncode_form;
-}
-
 std::string Request::get_raw_body() const{
     return this->raw_body;
 }
@@ -189,4 +300,8 @@ std::string to_string(int num){
     std::stringstream ss;
     ss << num;
     return ss.str();
+}
+
+std::vector<Form>  Request::get_form() const{
+    return this->form;
 }

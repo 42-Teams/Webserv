@@ -9,6 +9,14 @@
 #include <vector>
 #include <algorithm>
 
+typedef struct Form
+{
+	std::string name;
+	std::string value;
+	bool 		is_file;
+	std::string filename;
+	std::string content_type;
+} Form;
 
 class Request
 {
@@ -21,7 +29,7 @@ class Request
 		std::string requesr_status;
 		std::map<std::string, std::string> headers;
 		std::string body_type;
-		std::map<std::string, std::string> uncode_form;
+		std::vector<Form> form;
 		std::string raw_body;
 		std::string binary_body;
 		std::string query;
@@ -36,6 +44,7 @@ class Request
 		void creat_headers(std::string &str);
 		void check_request();
 		bool check_uri();
+		void parse_form(std::string form, std::string boundary);
 	public:
 		Request(std::string request);
 		std::string get_method() const;
@@ -49,6 +58,7 @@ class Request
 		std::string get_status() const;
 		std::string get_query() const;
 		std::string get_boundry() const;
+		std::vector<Form>  get_form() const;
 		~Request();
 };
 

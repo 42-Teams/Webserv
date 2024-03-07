@@ -9,11 +9,15 @@
 #include <string.h>
 #include <stdio.h>
 #include <cstring>
+
+class Server;
+
 class   Location
 {
     private :
         std::string    name;
         std::string    root;
+        int            body_size;                         // not necessery
         std::string    redirection;                       // not necessery
         std::string    index;                             // not necessery
         std::string    upload_path;                       // not necessery
@@ -24,6 +28,8 @@ class   Location
 
     public :
         Location();
+        Location(std::vector<Server>::iterator S);
+
         ~Location();
 
         void    set_location_name(const std::string& name);         //
@@ -35,6 +41,7 @@ class   Location
         void    set_cgi(std::string CgiPath);                       //
         void    set_auto_index(bool AutoIndex);                     //
         void    set_redirection(std::string Redirection);           //
+        void    set_body_size(int bodySize);                        //
 
 
 
@@ -50,6 +57,7 @@ class   Location
         std::map<std::string, std::string>              &get_cgi();                         //
         const bool                                      &get_auto_index() const;            //
         const std::string                               &get_redirection() const;           //
+        const int                                       &get_body_size() const;             //
 
         void    clear_cgi();
         void    clear_methods();
@@ -65,6 +73,7 @@ class Server
         std::string                 root;
         std::string                 index;
         std::string                 host;//
+        bool                        auto_index;
         std::map<int, std::string>  errors;     // not necessery
         int                         body_size;  // not necessery
 
@@ -76,9 +85,10 @@ class Server
 
         void    set_root(const std::string& root);                  //
         void    set_name(std::string Name);                         //
-        void    set_port(int Port);                                 //      Setters
+        void    set_port(int Port);                                 //
         void    set_errors(std::pair<int, std::string> Errors);     //
-        void    set_locations(Location Locations);                  //
+        void    set_locations(Location Locations);                  //      Setters
+        void    set_auto_index(bool AutoIndex);                     //
         void    set_body_size(int bodySize);                        //
         void    set_index(std::string Index);                       //
         void    set_host(std::string Host);                         //
@@ -90,8 +100,10 @@ class Server
         std::vector<int>::iterator                    get_port_begin();             //
         std::vector<int>::iterator                    get_port_end();               //
         const std::string                             &get_root() const;            //
+        std::vector<int>                              get_port() const;             //
         std::string                                   &get_host();                  //
         std::vector<Location>                         &get_locations();             //      Getters
+        bool                                          get_auto_index() const;       //
         std::map<int, std::string>::iterator          get_errors_begin();           //
         std::map<int, std::string>::iterator          get_errors_end();             //
         std::vector<Location>::iterator               get_locations_begin();        //

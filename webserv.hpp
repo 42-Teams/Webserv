@@ -33,9 +33,11 @@
 #include "Cgi.hpp"
 #include "Request.hpp"
 #include "Response.hpp"
+#include <sys/types.h>
+#include <netdb.h>
 
 # define READ_BUFFER 1024
-# define INACTIVITY_TIMEOUT 2
+# define INACTIVITY_TIMEOUT 20
 
 /***********************************************************************/
 /*                           ┌─────────────┐                           */

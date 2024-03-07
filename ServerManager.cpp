@@ -25,9 +25,9 @@ void ServerManager::setupServers()
     {
         try
         {
-            int socketFD = setupServer(conFile.at(i).get_port(), BACKLOG); // create new socket for the server
+            int socketFD = setupServer(conFile.at(i).get_port()[0], BACKLOG); // create new socket for the server
             FD_SET(socketFD, &mainReadSet);
-            std::cout << "\033[1;32mServer listening on port " << conFile.at(i).get_port() << "\033[0m" << std::endl;
+            std::cout << "\033[1;32mServer listening on port " << conFile.at(i).get_port()[0] << "\033[0m" << std::endl;
             serverSockets.push_back(socketFD);
         }
         catch(const char *error)
@@ -160,7 +160,6 @@ void ServerManager::handleSendingData(int socket)
     size_t &bytesSent = clientInfo.responseBytesSent;
 
     ssize_t bytesWriting = write(socket, clientInfo.response.c_str() + bytesSent, clientInfo.response.size() - bytesSent);
-
     if (bytesWriting == -1)
     {
         FD_CLR(socket, &mainWriteSet);

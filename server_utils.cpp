@@ -21,7 +21,26 @@ void check_error(int sys, int socketFD)
     }
 }
 
-int setupServer(int port, int backLog)
+std::vector<std::string> split(const std::string &s, char delimiter) {
+    std::vector<std::string> tokens;
+    std::string token;
+    std::istringstream tokenStream(s);
+    while (std::getline(tokenStream, token, delimiter)) {
+        tokens.push_back(token);
+    }
+    return tokens;
+}
+
+uint32_t ipToNetworkByteOrder(const std::string& ip) {
+    std::vector<std::string> parts = split(ip, '.');
+    uint32_t ipInNetworkByteOrder = 0;
+    for (int i = 0; i < 4; ++i) {
+        ipInNetworkByteOrder |= (std::atoi(parts[i].c_str()) << (24 - (8 * i)));
+    }
+    return ipInNetworkByteOrder;
+}
+
+int setupServer(int port, int backLog, const std::string &ip)
 {
     int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
     check_error(serverSocket, serverSocket);
@@ -31,11 +50,10 @@ int setupServer(int port, int backLog)
     check_error(setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)), serverSocket);
     sockaddr_in serverAddress = {};
     serverAddress.sin_family = AF_INET;
-    serverAddress.sin_addr.s_addr = INADDR_ANY;
+    serverAddress.sin_addr.s_addr = htonl(ipToNetworkByteOrder(ip));
     serverAddress.sin_port = htons(port);
     check_error(bind(serverSocket, reinterpret_cast<sockaddr*>(&serverAddress), sizeof(serverAddress)), serverSocket);
     check_error(listen(serverSocket, backLog), serverSocket);
-
     return (serverSocket);
 }
 

@@ -1,10 +1,10 @@
 [server]
 host = 127.0.0.1
 server_name = localhost
-port = 80
+port = 1024
 root = ./webser_default
 
 [location]
 name = /
-root = /
+root = ./webser_default/
 index = index.html

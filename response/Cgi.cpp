@@ -171,7 +171,7 @@ void Cgi::execute_cgi(std::string file, std::map<std::string,std::string> &cgis 
         delete[] envp;
         while (true)
         {
-            if (time(NULL) - start > 3)
+            if (time(NULL) - start > 5)
             {
                 close_pipe(input, output);
                 kill(pid, SIGKILL);
@@ -193,10 +193,11 @@ void Cgi::execute_cgi(std::string file, std::map<std::string,std::string> &cgis 
         bool found_content_type = false;
         int content_length = 0;
         int total_length = 0;
+        size_t pos = 0;
         while ((len = read(output[0], buf, 1024)) > 0){
             total_length += len;
             response.append(buf,len);
-            if (!found_content_type && response.find("\r\n\r\n") != std::string::npos)
+            if (!found_content_type && (pos = response.find("\r\n\r\n")) != std::string::npos)
             {
                 size_t pos = response.find("\r\n\r\n");
                 std::string header = response.substr(0, pos + 2);
@@ -207,7 +208,7 @@ void Cgi::execute_cgi(std::string file, std::map<std::string,std::string> &cgis 
                     found_content_type = true;
                 }
             }
-            if (total_length >= content_length && found_content_type){
+            if (total_length - pos >= (unsigned long)content_length && found_content_type){
                 break;
             }
         }

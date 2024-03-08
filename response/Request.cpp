@@ -128,9 +128,20 @@ bool Request::check_uri(){
     return true;
 }
 
+bool check_method(std::string method){
+    if (method == "GET" || method == "HEAD" || method == "POST" || method == "PUT" || method == "DELETE" || method == "CONNECT" || method == "OPTIONS" || method == "TRACE")
+        return true;
+    return false;
+}
+
 void Request::check_request(){
+
     if (this->version != "HTTP/1.1")
         this->requesr_status = "505";
+    else if (!check_method(this->method))
+        this->requesr_status = "501";
+    else if (this->headers.find("Host") == this->headers.end())
+        this->requesr_status = "400";
     else if (this->headers.find("Transfer-Encoding") != this->headers.end() && this->headers["Transfer-Encoding"] != "chunked")
         this->requesr_status = "501";
     else if (this->method == "POST" && this->headers.find("Transfer-Encoding") == this->headers.end() && this->headers.find("Content-Length") == this->headers.end())
@@ -223,6 +234,7 @@ void Request::parse_request(std::string request){
         return;
     fix_space_in_path(this->path);
     request.erase(0,pos + 4);
+
     if (request.length() > 0)
     {
         this->body = true;

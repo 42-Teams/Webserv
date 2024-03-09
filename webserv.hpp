@@ -35,6 +35,7 @@
 #include "Response.hpp"
 #include <sys/types.h>
 #include <netdb.h>
+#include <sys/statvfs.h>
 
 # define READ_BUFFER 1024
 # define INACTIVITY_TIMEOUT 20

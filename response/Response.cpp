@@ -193,9 +193,19 @@ void save_file(std::string file_path, const std::string& file_content, std::stri
 void Response::upload_file(Request& request, Server& server, Location &location)
 {
 	(void)server;
+	struct stat file_stat;
+	if (stat(location.get_upload_path().c_str(), &file_stat) < 0)
+		throw std::runtime_error("500");
+	if (!S_ISDIR(file_stat.st_mode))
+		throw std::runtime_error("500");
+	struct statvfs buf;
+	if (statvfs(location.get_upload_path().c_str(), &buf))
+		throw std::runtime_error("500");
 	std::vector<Form> form = request.get_form();
 	if (form.size() == 0){
 		if (check_type(request.get_headers()["Content-Type"])){
+			if (buf.f_bfree * buf.f_frsize < request.get_raw_body().size())
+				throw std::runtime_error("507");
 			std::string file_path = location.get_upload_path() + "/" + NameGenerator() + "." + getExtension(request.get_headers()["Content-Type"],mime_types);
 			save_file(file_path, request.get_raw_body(), _response);
 		}
@@ -207,6 +217,8 @@ void Response::upload_file(Request& request, Server& server, Location &location)
 			std::string file_name = form[i].filename;
 			std::string file_path = location.get_upload_path() + "/" + file_name;
 			std::string file_content = form[i].value;
+			if (file_content.size() > buf.f_bfree * buf.f_frsize)
+				throw std::runtime_error("507");
 			save_file(file_path, file_content, _response);
 		}
 	}

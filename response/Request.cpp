@@ -115,6 +115,8 @@ void Request::parse_form(std::string form, std::string boundary){
 
 
 bool Request::check_uri(){
+    if (this->path.empty())
+        return false;
     std::string allowed_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~:/?#[]@!$&'()*+,;=%";
     for (size_t i = 0; i < this->path.length(); i++)
     {
@@ -135,11 +137,12 @@ bool check_method(std::string method){
 }
 
 void Request::check_request(){
-
-    if (this->version != "HTTP/1.1")
+    if (this->version == "" || this->method == "" || this->path == "" || this->headers.empty())
+        this->requesr_status = "400";
+    else if (this->version != "HTTP/1.1")
         this->requesr_status = "505";
     else if (!check_method(this->method))
-        this->requesr_status = "501";
+        this->requesr_status = "400";
     else if (this->headers.find("Host") == this->headers.end())
         this->requesr_status = "400";
     else if (this->headers.find("Transfer-Encoding") != this->headers.end() && this->headers["Transfer-Encoding"] != "chunked")
@@ -192,10 +195,16 @@ void Request::creat_headers(std::string &str){
     std::stringstream fl(firstLine);
     std::string tmp;
     fl >> tmp;
+    if (fl.eof())
+        return;
     set_method(tmp);
     fl >> tmp;
+    if (fl.eof())
+        return;
     set_path(tmp);
     fl >> tmp;
+    if (fl.eof())
+        return;
     set_version(tmp);
     while (std::getline(ss,tmp,'\n'))
     {

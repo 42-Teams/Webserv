@@ -8,3 +8,5 @@ index = index.html
 name = /
 root = ./webser_default/
 index = index.html
+upload_enable = true
+upload_path = ./webser_default/

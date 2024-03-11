@@ -103,21 +103,36 @@ Response::Response(Request& request, Server& server)
 	init_error_messages();
 	try {
 		if (request.get_status() != "OK")
-			throw (request.get_status().c_str());
-		if ((int)request.get_raw_body().size() > server.get_body_size())
-			throw std::runtime_error("413");
+			throw std::runtime_error(request.get_status().c_str());
 		Location location;
 		location = find_location(server.get_locations(),request.get_path());
+		if ((int)request.get_raw_body().size() > location.get_body_size())
+			throw std::runtime_error("413");
 		std::string method = request.get_method();
 		if (std::find(location.get_methods_begin(), location.get_methods_end(), method) == location.get_methods_end())
 			throw std::runtime_error("405");
 		else{
-			if (method == "POST")
+			if (method == "POST"){
+				if (!location.get_redirection().empty()){
+					this->_response = "HTTP/1.1 301 Moved Permanently\r\ncontent-length: 0\r\nLocation: " + location.get_redirection() + "\r\n\r\n";
+					return;
+				}
 				Post(request, server,location);
-			else if (method == "GET")
+			}
+			else if (method == "GET"){
+				if (!location.get_redirection().empty()){
+					this->_response = "HTTP/1.1 301 Moved Permanently\r\ncontent-length: 0\r\nLocation: " + location.get_redirection() + "\r\n\r\n";
+					return;
+				}
 				Get(request, server,location);
-			else if (method == "DELETE")
+			}
+			else if (method == "DELETE"){
+				if (!location.get_redirection().empty()){
+					this->_response = "HTTP/1.1 301 Moved Permanently\r\ncontent-length: 0\r\nLocation: " + location.get_redirection() + "\r\n\r\n";
+					return;
+				}
 				Delete(request, server,location);
+			}
 			else
 				throw std::runtime_error("405");
 		}
@@ -142,6 +157,12 @@ std::string NameGenerator(){
 	return name;
 }
 
+void check_fail_reason(std::string& file_path){
+	if (access(file_path.c_str(), R_OK | W_OK) == -1)
+		throw std::runtime_error("403");
+	throw std::runtime_error("500");
+}
+
 std::string getExtension(std::string type, std::map<std::string, std::string>& mime_types){
 	for (std::map<std::string, std::string>::iterator it = mime_types.begin(); it != mime_types.end(); it++){
 		if (it->second == type)
@@ -150,22 +171,57 @@ std::string getExtension(std::string type, std::map<std::string, std::string>& m
 	return "";
 }
 
-void Response::upload_file(Request& request, Server& server, Location &location)
-{
-	(void)server;
-	std::string ext = getExtension(request.get_headers()["Content-Type"],mime_types);
-	std::string file_name = NameGenerator() + "." + ext;
-	std::string file_path = location.get_upload_path() + "/" + file_name;
-	std::string file_content = request.get_raw_body();
+bool check_type(std::string content_type){
+	if (content_type.empty())
+		throw std::runtime_error("400");
+	if (content_type != "application/x-www-form-urlencoded" && content_type.substr(0, 19) != "multipart/form-data;")
+		return true;
+	return false;
+}
+
+void save_file(std::string file_path, const std::string& file_content, std::string &_response){
 	std::ofstream file(file_path.c_str(), std::ios::binary);
 	if (file.is_open()){
 		file << file_content;
 		file.close();
-		_response = "HTTP/1.1 201 Created\r\ncontent-type: " + this->mime_types[getExtension(request.get_headers()["Content-Type"],mime_types)] + "\r\nContent-Disposition: attachment; filename=\"" + file_name + "\"\r\ncontent-length: " + to_string(file_content.length()) + "\r\n\r\n" + file_content;
-		std::remove(file_path.c_str());
+		_response = "HTTP/1.1 201 Created\r\ncontent-length: 0\r\n\r\n";
 	}
 	else
 		throw std::runtime_error("500");
+}
+
+void Response::upload_file(Request& request, Server& server, Location &location)
+{
+	(void)server;
+	struct stat file_stat;
+	if (stat(location.get_upload_path().c_str(), &file_stat) < 0)
+		throw std::runtime_error("500");
+	if (!S_ISDIR(file_stat.st_mode))
+		throw std::runtime_error("500");
+	struct statvfs buf;
+	if (statvfs(location.get_upload_path().c_str(), &buf))
+		throw std::runtime_error("500");
+	std::vector<Form> form = request.get_form();
+	if (form.size() == 0){
+		if (check_type(request.get_headers()["Content-Type"])){
+			if (buf.f_bfree * buf.f_frsize < request.get_raw_body().size())
+				throw std::runtime_error("507");
+			std::string file_path = location.get_upload_path() + "/" + NameGenerator() + "." + getExtension(request.get_headers()["Content-Type"],mime_types);
+			save_file(file_path, request.get_raw_body(), _response);
+		}
+		return ;
+	}
+	for (size_t i = 0; i < form.size(); i++){
+		if (form[i].is_file == true){
+			std::string ext = getExtension(form[i].content_type,mime_types);
+			std::string file_name = form[i].filename;
+			std::string file_path = location.get_upload_path() + "/" + file_name;
+			std::string file_content = form[i].value;
+			if (file_content.size() > buf.f_bfree * buf.f_frsize)
+				throw std::runtime_error("507");
+			save_file(file_path, file_content, _response);
+		}
+	}
 }
 
 void Response::non_upload(Request& request, Server& server, Location &location)
@@ -173,7 +229,7 @@ void Response::non_upload(Request& request, Server& server, Location &location)
 	std::string path = request.get_path();
 	std::string root = location.get_root();
 	path = path.substr(location.get_location_name().length(), path.length());
-	std::string file_path = server.get_root() + root + path;
+	std::string file_path = root + path;
 	struct stat file_stat;
 	if (stat(file_path.c_str(), &file_stat) < 0)
 		throw std::runtime_error("404");
@@ -191,23 +247,33 @@ void Response::non_upload(Request& request, Server& server, Location &location)
 }
 
 bool posted_to_file(std::string uri){
-	if (uri.find_last_of("/") == uri.length() - 1)
+
+	struct stat file_stat;
+	if (stat(uri.c_str(), &file_stat) < 0)
+		return false;
+	if (S_ISREG(file_stat.st_mode))
 		return true;
 	return false;
 }
 
 void Response::Post(Request& request, Server& server, Location &location)
 {
-	non_upload(request, server, location);
+	std::string path = request.get_path();
+	std::string root = location.get_root();
+	path = path.substr(location.get_location_name().length(), path.length());
+	root = root + path;
+	if (!posted_to_file(root) && location.get_upload_path() != "" && location.get_upload_enable())
+		upload_file(request, server, location);
+	else
+		non_upload(request, server, location);
 }
 
 void Response::Get(Request& request, Server& server, Location &location)
 {
 	std::string path = request.get_path();
 	std::string root = location.get_root();
-	if (location.get_location_name() != "/")
-		path = path.substr(location.get_location_name().length(), path.length());
-	std::string file_path = server.get_root() + root + path;
+	path = path.substr(location.get_location_name().length(), path.length());
+	std::string file_path = root + path;
 	struct stat file_stat;
 	if (stat(file_path.c_str(), &file_stat) < 0)
 		throw std::runtime_error("404");
@@ -218,6 +284,8 @@ void Response::Get(Request& request, Server& server, Location &location)
 			_response = run_cgi(file_path, location.get_cgi(), request, location);
 		}
 		else{
+			if (file_path == location.get_root() && location.get_location_name() == "/")
+				throw std::runtime_error("500");
 			std::ifstream file(file_path.c_str(), std::ios::binary);
 			if (file.is_open()){
 				std::string page((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
@@ -226,10 +294,10 @@ void Response::Get(Request& request, Server& server, Location &location)
 				std::string content_type = mime_types[file_extension];
 				if (content_type == "")
 					content_type = "application/octet-stream";
-				_response = "HTTP/1.1 200 OK\r\ncontent-type: " + content_type + "\r\ncontent-length: " + to_string(page.length()) + "\r\n\r\n" + page;
+				_response = "HTTP/1.1 200 OK\r\nContent-Type: " + content_type + "\r\nContent-Length: " + to_string(page.length()) + "\r\n\r\n" + page;
 			}
 			else
-				throw std::runtime_error("404");
+				check_fail_reason(file_path);
 		}
 	}
 	else
@@ -240,23 +308,17 @@ void Response::Delete(Request& request, Server& server, Location &location)
 {
 	std::string path = request.get_path();
 	std::string root = location.get_root();
-	if (location.get_location_name() != "/")
-		path = path.substr(location.get_location_name().length(), path.length());
-	std::string file_path = server.get_root() + root + path;
+	path = path.substr(location.get_location_name().length(), path.length());
+	std::string file_path = root + path;
 	struct stat file_stat;
 	if (stat(file_path.c_str(), &file_stat) < 0)
 		throw std::runtime_error("404");
 	if (S_ISDIR(file_stat.st_mode))
 		delete_dir(request, server,location, file_path);
 	else if (S_ISREG(file_stat.st_mode)){
-		if (!location.get_cgi().empty() && need_cgi(file_path, location.get_cgi())){
-			_response = run_cgi(file_path, location.get_cgi(), request, location);
-		}
-		else{
-			if (std::remove(file_path.c_str()) != 0)
-				throw std::runtime_error("404");
-			_response = "HTTP/1.1 204 No Content\r\n\r\n";
-		}
+		if (std::remove(file_path.c_str()) != 0)
+			check_fail_reason(file_path);
+		_response = "HTTP/1.1 204 No Content\r\n\r\n";
 	}
 	else
 		throw std::runtime_error("404");
@@ -288,17 +350,19 @@ std::string Response::get_error_page(int code, Server& server)
 
 void Response::init_error_pages()
 {
-	_error_pages[400] = "HTTP/1.1 400 Bad Request\r\nContent-Length: 50\r\n\r\n<html><body><h1>400 Bad Request</h1></body></html>";
-	_error_pages[401] = "HTTP/1.1 401 Unauthorized\r\nContent-Length: 51\r\n\r\n<html><body><h1>401 Unauthorized</h1></body></html>";
-	_error_pages[403] = "HTTP/1.1 403 Forbidden\r\nContent-Length: 48\r\n\r\n<html><body><h1>403 Forbidden</h1></body></html>";
-	_error_pages[404] = "HTTP/1.1 404 Not Found\r\nContent-Length: 48\r\n\r\n<html><body><h1>404 Not Found</h1></body></html>";
-	_error_pages[405] = "HTTP/1.1 405 Method Not Allowed\r\nContent-Length: 57\r\n\r\n<html><body><h1>405 Method Not Allowed</h1></body></html>";
+	_error_pages[400] = "HTTP/1.1 400 Bad Request\r\ncontent-type: text/html\r\nContent-Length: 50\r\n\r\n<html><body><h1>400 Bad Request</h1></body></html>";
+	_error_pages[401] = "HTTP/1.1 401 Unauthorized\r\ncontent-type: text/html\r\nContent-Length: 51\r\n\r\n<html><body><h1>401 Unauthorized</h1></body></html>";
+	_error_pages[403] = "HTTP/1.1 403 Forbidden\r\ncontent-type: text/html\r\nContent-Length: 48\r\n\r\n<html><body><h1>403 Forbidden</h1></body></html>";
+	_error_pages[404] = "HTTP/1.1 404 Not Found\r\ncontent-type: text/html\r\nContent-Length: 48\r\n\r\n<html><body><h1>404 Not Found</h1></body></html>";
+	_error_pages[405] = "HTTP/1.1 405 Method Not Allowed\r\ncontent-type: text/html\r\nContent-Length: 57\r\n\r\n<html><body><h1>405 Method Not Allowed</h1></body></html>";
 	_error_pages[409] = "HTTP/1.1 409 Conflict\r\ncontent-type: text/html\r\nContent-Length: 47\r\n\r\n<html><body><h1>409 Conflict</h1></body></html>";
-	_error_pages[413] = "HTTP/1.1 413 Payload Too Large\r\nContent-Length: 56\r\n\r\n<html><body><h1>413 Payload Too Large</h1></body></html>";
-	_error_pages[500] = "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 60\r\n\r\n<html><body><h1>500 Internal Server Error</h1></body></html>";
-	_error_pages[501] = "HTTP/1.1 501 Not Implemented\r\nContent-Length: 54\r\n\r\n<html><body><h1>501 Not Implemented</h1></body></html>";
-	_error_pages[505] = "HTTP/1.1 505 HTTP Version Not Supported\r\nContent-Length: 65\r\n\r\n<html><body><h1>505 HTTP Version Not Supported</h1></body></html>";
-	_error_pages[507] = "HTTP/1.1 507 Insufficient Storage\r\nContent-Length: 59\r\n\r\n<html><body><h1>507 Insufficient Storage</h1></body></html>";
+	_error_pages[413] = "HTTP/1.1 413 Payload Too Large\r\ncontent-type: text/html\r\nContent-Length: 56\r\n\r\n<html><body><h1>413 Payload Too Large</h1></body></html>";
+	_error_pages[414] = "HTTP/1.1 414 URI Too Long\r\ncontent-type: text/html\r\nContent-Length: 51\r\n\r\n<html><body><h1>414 URI Too Long</h1></body></html>";
+	_error_pages[500] = "HTTP/1.1 500 Internal Server Error\r\ncontent-type: text/html\r\nContent-Length: 60\r\n\r\n<html><body><h1>500 Internal Server Error</h1></body></html>";
+	_error_pages[501] = "HTTP/1.1 501 Not Implemented\r\ncontent-type: text/html\r\nContent-Length: 54\r\n\r\n<html><body><h1>501 Not Implemented</h1></body></html>";
+	_error_pages[504] = "HTTP/1.1 504 Gateway Timeout\r\ncontent-type: text/html\r\nContent-Length: 54\r\n\r\n<html><body><h1>504 Gateway Timeout</h1></body></html>";
+	_error_pages[505] = "HTTP/1.1 505 HTTP Version Not Supported\r\ncontent-type: text/html\r\nContent-Length: 65\r\n\r\n<html><body><h1>505 HTTP Version Not Supported</h1></body></html>";
+	_error_pages[507] = "HTTP/1.1 507 Insufficient Storage\r\ncontent-type: text/html\r\nContent-Length: 59\r\n\r\n<html><body><h1>507 Insufficient Storage</h1></body></html>";
 }
 
 void Response::init_error_messages(){
@@ -309,8 +373,10 @@ void Response::init_error_messages(){
 	_error_messages[405] = "Method Not Allowed";
 	_error_messages[409] = "Conflict";
 	_error_messages[413] = "Payload Too Large";
+	_error_messages[414] = "URI Too Long";
 	_error_messages[500] = "Internal Server Error";
 	_error_messages[501] = "Not Implemented";
+	_error_messages[504] = "Gateway Timeout";
 	_error_messages[505] = "HTTP Version Not Supported";
 	_error_messages[507] = "Insufficient Storage";
 }
@@ -345,50 +411,21 @@ void Response::get_dir(Request& request, Server& server, Location& location)
 		return ;
 	}
 	std::string root = location.get_root();
-	if (location.get_location_name() != "/")
-		path = path.substr(location.get_location_name().length(), path.length());
+	path = path.substr(location.get_location_name().length(), path.length());
 	path = root + path;
-	if (path[path.length() - 1] != '/')
-		path += "/";
-	std::string file_path = server.get_root() + path;
+
+	std::string file_path = path;
 	std::string index = location.get_index();
-	if (!index.empty()){
-		if (!location.get_cgi().empty() && need_cgi(index, location.get_cgi())){
-			_response = run_cgi(file_path + index, location.get_cgi(), request, location);
-		}
-		else{
-			std::string index_path = file_path + index;
-			std::ifstream file(index_path.c_str(), std::ios::binary);
-			if (file.is_open()){
-				std::string page((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-				file.close();
-				std::string file_extension = index_path.substr(index_path.find_last_of(".") + 1);
-					std::string content_type = mime_types[file_extension];
-				_response = "HTTP/1.1 200 OK\r\ncontent-type: "+content_type+"\r\ncontent-length: " + to_string(page.size()) + "\r\n\r\n" + page;
-			}
-			else if (location.get_auto_index()){
-				list_directory(file_path, _response);
-			}
-			else
-				throw std::runtime_error("404");
-		}
+	std::ifstream file((file_path + index).c_str(),std::ios::binary);
+	if (file.is_open()){
+		std::string page((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+		file.close();
+		_response = "HTTP/1.1 200 OK\r\ncontent-type: text/html\r\ncontent-length: " + to_string(page.size()) + "\r\n\r\n" + page;
 	}
-	else if (index.empty() && !stat((file_path + "index.html").c_str(), NULL)){
-		std::ifstream file((file_path + "index.html").c_str(), std::ios::binary);
-		if (file.is_open()){
-			std::string page((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-			file.close();
-			_response = "HTTP/1.1 200 OK\r\ncontent-type: text/html\r\ncontent-length: " + to_string(page.size()) + "\r\n\r\n" + page;
-		}
-		else
-			throw std::runtime_error("404");
-	}
-	else{
-		if (location.get_auto_index())
-			list_directory(file_path, _response);
-		else
-			throw std::runtime_error("403");
-	}
+	else if (location.get_auto_index())
+		list_directory(file_path, _response);
+	else
+		throw std::runtime_error("403");
 }
 
 void Response::post_dir(Request& request, Server& server, Location& location)
@@ -414,7 +451,10 @@ void Response::post_dir(Request& request, Server& server, Location& location)
 			_response = run_cgi(file_path + index, location.get_cgi(), request, location);
 		}
 		else{
-			throw std::runtime_error("403");
+			if (location.get_auto_index())
+				list_directory(file_path, _response);
+			else
+				throw std::runtime_error("403");
 		}
 	}
 }
@@ -459,7 +499,7 @@ void Response::delete_dir(Request& request, Server& server, Location& location, 
 		_response = "HTTP/1.1 204 No Content\r\n\r\n";
 	}
 	catch(std::exception &e){
-		throw std::runtime_error("404");
+		check_fail_reason(file_path);
 	}
 }
 

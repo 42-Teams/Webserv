@@ -33,9 +33,12 @@
 #include "Cgi.hpp"
 #include "Request.hpp"
 #include "Response.hpp"
+#include <sys/types.h>
+#include <netdb.h>
+#include <sys/statvfs.h>
 
 # define READ_BUFFER 1024
-# define INACTIVITY_TIMEOUT 2
+# define INACTIVITY_TIMEOUT 20
 
 /***********************************************************************/
 /*                           ┌─────────────┐                           */
@@ -77,7 +80,7 @@ typedef clientInfoList::iterator clientInfoIt;                ///< Iterator for 
  * @param backLog The maximum number of pending connections in the server's listen queue.
  * @return The server socket file descriptor.
  */
-int  setupServer(int port, int backLog);
+int  setupServer(int port, int backLog, const std::string &ip);
 
 /**
  * @brief Accept a new client connection on the server socket.

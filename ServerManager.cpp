@@ -23,17 +23,25 @@ void ServerManager::setupServers()
 {
     for (size_t i = 0; i < conFile.size(); ++i)
     {
+        std::cout << "\033[1;32mServer listening on host " << conFile.at(i).get_host() << ":\033[0m" << std::endl;
         try
         {
-            int socketFD = setupServer(conFile.at(i).get_port(), BACKLOG); // create new socket for the server
-            FD_SET(socketFD, &mainReadSet);
-            std::cout << "\033[1;32mServer listening on port " << conFile.at(i).get_port() << "\033[0m" << std::endl;
-            serverSockets.push_back(socketFD);
+            for (size_t j = 0; j < conFile.at(i).get_port().size(); ++j) {
+                int socketFD = setupServer(conFile.at(i).get_port()[j], BACKLOG, conFile.at(i).get_host()); // create new socket for the server
+                FD_SET(socketFD, &mainReadSet);
+                std::cout << "\033[1;32m- With port " << conFile.at(i).get_port()[j] << "\033[0m" << std::endl;
+                serverSockets.push_back(socketFD);
+            }
         }
         catch(const char *error)
         {
             std::cerr << "\033[1;31m" << error << "\033[0m" << '\n';
         }
+    }
+    if (serverSockets.empty())
+    {
+        std::cerr << "\033[1;31mNo server sockets were created\033[0m" << '\n';
+        exit(EXIT_FAILURE);
     }
     max_fds = serverSockets.back();
 }
@@ -160,7 +168,6 @@ void ServerManager::handleSendingData(int socket)
     size_t &bytesSent = clientInfo.responseBytesSent;
 
     ssize_t bytesWriting = write(socket, clientInfo.response.c_str() + bytesSent, clientInfo.response.size() - bytesSent);
-
     if (bytesWriting == -1)
     {
         FD_CLR(socket, &mainWriteSet);

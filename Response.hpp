@@ -18,6 +18,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <map>
 
 class Response
@@ -37,6 +38,7 @@ private:
 	void non_upload(Request& request, Server& server, Location& location);
 	void delete_dir(Request& request, Server& server, Location& location, std::string path);
 	void post_dir(Request& request, Server& server, Location& location);
+	void get_directory_cases(std::string file_path, std::string index, std::string& _response, int case_n, bool auto_index, std::string server_index);
 	std::map<std::string, std::string> mime_types;
 public:
 	Response(Request& request, Server& server);

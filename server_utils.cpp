@@ -122,14 +122,12 @@ Server find_by_ip(std::vector<Server> &conFile, std::string ip, int port)
         if (conFile[i].get_host() == ip && has_port(conFile[i].get_port(), port))
             return conFile[i];
     }
-    Server server;
     for (size_t i = 0; i < conFile.size(); i++){
         if (has_port(conFile[i].get_port(), port)){
-            server = conFile[i];
-            break;
+            return conFile[i];
         }
     }
-    return server;
+    return conFile[0];
 }
 
 Server findServer(std::vector<Server> &conFile, Request &request)
@@ -153,9 +151,7 @@ Server findServer(std::vector<Server> &conFile, Request &request)
         for (size_t i = 0; i < servers.size(); i++)
         {
             if (servers[i].get_host() == host && has_port(servers[i].get_port(), std::atoi(port.c_str())))
-            {
                 return servers[i];
-            }
         }
     }
     return find_by_ip(conFile, host, std::atoi(port.c_str()));

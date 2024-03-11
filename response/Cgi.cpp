@@ -68,14 +68,26 @@ char **get_env(std::map<std::string, std::string> env)
 void parse_headers(std::string header, std::map<std::string, std::string>& headers)
 {
     size_t pos = 0;
+    bool first_line = false;
     while ((pos = header.find("\r\n")) != std::string::npos)
     {
         std::string line = header.substr(0, pos);
+        if (!first_line)
+        {
+            first_line = true;
+            if (line.find("HTTP") == 0)
+                headers["Status"] = line.substr(line.find(" ") + 1);
+            continue;
+        }
         header.erase(0, pos + 2);
         size_t pos = line.find(":");
         if (pos != std::string::npos)
         {
             std::string key = line.substr(0, pos);
+            if (key == "Content-Type")
+                key = "Content-type";
+            else if (key == "Location")
+                key = "location";
             std::string value = line.substr(pos + 1);
             headers[key] = value;
         }
@@ -190,14 +202,14 @@ void Cgi::execute_cgi(std::string file, std::map<std::string,std::string> &cgis 
         close(input[1]);
         close(output[1]);
         close(input[0]);
-        bool found_content_type = false;
+        bool found_content_length = false;
         int content_length = 0;
         int total_length = 0;
         size_t pos = 0;
         while ((len = read(output[0], buf, 1024)) > 0){
             total_length += len;
             response.append(buf,len);
-            if (!found_content_type && (pos = response.find("\r\n\r\n")) != std::string::npos)
+            if (!found_content_length && (pos = response.find("\r\n\r\n")) != std::string::npos)
             {
                 size_t pos = response.find("\r\n\r\n");
                 std::string header = response.substr(0, pos + 2);
@@ -205,10 +217,10 @@ void Cgi::execute_cgi(std::string file, std::map<std::string,std::string> &cgis 
                 parse_headers(header, headers);
                 if (headers.find("Content-Length") != headers.end()){
                     content_length = atoi(headers["Content-Length"].c_str());
-                    found_content_type = true;
+                    found_content_length = true;
                 }
             }
-            if (total_length - pos >= (unsigned long)content_length && found_content_type){
+            if (total_length - pos >= (unsigned long)content_length && found_content_length){
                 break;
             }
         }

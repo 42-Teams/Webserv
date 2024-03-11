@@ -187,11 +187,28 @@ void remove_duplicate_slash(std::string &str){
         str.erase(pos,1);
 }
 
+int number_of(std::string str, char c){
+    int count = 0;
+    for (size_t i = 0; i < str.length(); i++)
+    {
+        if (str[i] == c)
+            count++;
+    }
+    return count;
+}
+
 void Request::creat_headers(std::string &str){
     std::stringstream ss(str);
 
     std::string firstLine;
     std::getline(ss,firstLine);
+    if (firstLine == "")
+        return;
+    if (number_of(firstLine,' ') > 2)
+    {
+        this->requesr_status = "400";
+        return;
+    }
     std::stringstream fl(firstLine);
     std::string tmp;
     fl >> tmp;

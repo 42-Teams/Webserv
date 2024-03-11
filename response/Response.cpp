@@ -316,14 +316,9 @@ void Response::Delete(Request& request, Server& server, Location &location)
 	if (S_ISDIR(file_stat.st_mode))
 		delete_dir(request, server,location, file_path);
 	else if (S_ISREG(file_stat.st_mode)){
-		if (!location.get_cgi().empty() && need_cgi(file_path, location.get_cgi())){
-			_response = run_cgi(file_path, location.get_cgi(), request, location);
-		}
-		else{
-			if (std::remove(file_path.c_str()) != 0)
-				check_fail_reason(file_path);
-			_response = "HTTP/1.1 204 No Content\r\n\r\n";
-		}
+		if (std::remove(file_path.c_str()) != 0)
+			check_fail_reason(file_path);
+		_response = "HTTP/1.1 204 No Content\r\n\r\n";
 	}
 	else
 		throw std::runtime_error("404");

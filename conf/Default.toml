@@ -2,11 +2,9 @@
 host = 127.0.0.1
 server_name = localhost
 port = 1024
-root = ./webser_default
-index = index.html
-[location]
-name = /
 root = ./webser_default/
 index = index.html
-upload_enable = true
-upload_path = ./webser_default/
+[location]
+name = /web
+root = ./webser_default/
+

@@ -187,12 +187,10 @@ Location    default_location(std::vector<Server>::iterator serv_it)
     Location L;
 
     L.set_location_name("/");
-    L.set_root("/");
-    std::string index = serv_it->get_index();
-    if (index.empty())
-        L.set_index("index.html");
-    else
-        L.set_index(index);
+    L.set_root(serv_it->get_root());
+    L.set_index(serv_it->get_index());
+    L.set_body_size(serv_it->get_body_size());
+    L.set_auto_index(serv_it->get_auto_index());
     L.set_methods("GET");
     L.set_methods("POST");
     L.set_methods("DELETE");
@@ -206,8 +204,8 @@ bool    checkOptionals(std::vector<Server> &vec)
 //               and also add the three methods GET, POST and DELETE if no methods are specified.
     for(std::vector<Server>::iterator it = vec.begin(); it != vec.end(); it++)
     {
-        if (it->get_name().empty() || it->get_port_begin() == it->get_port_end() || 
-            it->get_root().empty() || it->get_index().empty() || it->get_host().empty()) 
+        if (it->get_name().empty() || it->get_port_begin() == it->get_port_end() ||
+            it->get_root().empty() || it->get_index().empty() || it->get_host().empty())
             return (true);
         if (it->get_locations_begin() == it->get_locations_end())
             it->locations.push_back(default_location(it));

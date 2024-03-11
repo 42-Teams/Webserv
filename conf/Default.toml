@@ -5,6 +5,6 @@ port = 1024
 root = ./webser_default/
 index = index.html
 [location]
-name = /web
+name = /
 root = ./webser_default/
 

@@ -227,8 +227,8 @@ void ServerManager::run()
     while (true)
     {
         filterInactiveConnections(); // Filter inactive connections
-        FD_COPY(&mainReadSet, &workingReadSet);
-        FD_COPY(&mainWriteSet, &workingWriteSet);
+        workingReadSet = mainReadSet;
+        workingWriteSet = mainWriteSet;
         // Set up the timeval struct for the select() call.
         struct timeval timeout;
         timeout.tv_sec = INACTIVITY_TIMEOUT;
